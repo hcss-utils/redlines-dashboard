@@ -114,9 +114,9 @@ export default function Overview() {
       <div className="chart-row">
         <div className="chart-box">
           <div className="chart-title-bar">
-            <h4>Confirmed Statements by Source (Top 15)</h4>
+            <h4>Confirmed Statements by Source — Absolute (Top 15)</h4>
             <ChartInfo
-              title="Confirmed Statements by Source"
+              title="Confirmed Statements by Source — Absolute"
               description="Grouped bar chart comparing RRLS and NTS confirmed statement counts across the top 15 sources. Shows which sources generate the most red line and nuclear threat rhetoric."
             />
           </div>
@@ -147,7 +147,123 @@ export default function Overview() {
             style={{ width: '100%' }}
           />
         </div>
+        <div className="chart-box">
+          <div className="chart-title-bar">
+            <h4>Classification Rate by Source — % of Chunks (Top 15)</h4>
+            <ChartInfo
+              title="Classification Rate by Source — Relative"
+              description="What percentage of each source's text chunks are classified as RRLS or NTS. Normalizes for source size, revealing which sources have the densest red line or nuclear threat content."
+            />
+          </div>
+          <Plot
+            data={[
+              {
+                type: 'bar', name: 'RRLS %',
+                x: top.map(r => r.source),
+                y: top.map(r => (r.total_chunks ?? 0) > 0 ? ((r.confirmed ?? 0) / r.total_chunks!) * 100 : 0),
+                marker: { color: '#1f77b4' },
+                text: top.map(r => (r.total_chunks ?? 0) > 0 ? (((r.confirmed ?? 0) / r.total_chunks!) * 100).toFixed(1) + '%' : '0%'),
+                textposition: 'outside',
+              },
+              {
+                type: 'bar', name: 'NTS %',
+                x: nts.slice(0, 15).map(r => r.source),
+                y: nts.slice(0, 15).map(r => (r.total_chunks ?? 0) > 0 ? ((r.confirmed ?? 0) / r.total_chunks!) * 100 : 0),
+                marker: { color: '#ff7f0e' },
+                text: nts.slice(0, 15).map(r => (r.total_chunks ?? 0) > 0 ? (((r.confirmed ?? 0) / r.total_chunks!) * 100).toFixed(1) + '%' : '0%'),
+                textposition: 'outside',
+              },
+            ]}
+            layout={{
+              barmode: 'group',
+              paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+              font: { color: '#e0e0e0' },
+              xaxis: { tickangle: -45 },
+              margin: { t: 10, b: 120, l: 60, r: 20 },
+              height: 400,
+              yaxis: { title: '% of Chunks', ticksuffix: '%' },
+              legend: { orientation: 'h', y: 1.1 },
+            }}
+            config={{ displayModeBar: false, responsive: true }}
+            style={{ width: '100%' }}
+          />
+        </div>
       </div>
+
+      {/* Slope chart: RRLS rank vs NTS rank */}
+      {rrls.length > 0 && nts.length > 0 && (() => {
+        const rrlsRanked = rrls.slice(0, 20).map((r, i) => ({ source: r.source, rank: i + 1, confirmed: r.confirmed ?? 0 }));
+        const ntsRanked = nts.slice(0, 20).map((r, i) => ({ source: r.source, rank: i + 1, confirmed: r.confirmed ?? 0 }));
+        const ntsRankMap: Record<string, number> = {};
+        for (const r of ntsRanked) ntsRankMap[r.source] = r.rank;
+        const rrlsRankMap: Record<string, number> = {};
+        for (const r of rrlsRanked) rrlsRankMap[r.source] = r.rank;
+
+        // All sources present in either top 20
+        const allSources = [...new Set([...rrlsRanked.map(r => r.source), ...ntsRanked.map(r => r.source)])];
+        const maxRank = 21; // for sources not in top 20
+
+        const slopeTraces = allSources.map(src => {
+          const rRank = rrlsRankMap[src] ?? maxRank;
+          const nRank = ntsRankMap[src] ?? maxRank;
+          const diff = Math.abs(rRank - nRank);
+          const color = diff >= 8 ? '#d62728' : diff >= 4 ? '#ff7f0e' : '#aec7e8';
+          return {
+            type: 'scatter' as const,
+            mode: 'lines+markers+text' as const,
+            x: [0, 1],
+            y: [rRank, nRank],
+            text: [src, src],
+            textposition: ['middle left' as const, 'middle right' as const],
+            textfont: { size: 10, color: '#e0e0e0' },
+            line: { color, width: diff >= 4 ? 2.5 : 1.5 },
+            marker: { size: 8, color },
+            hovertemplate: `${src}<br>RRLS rank: ${rRank}${rRank === maxRank ? ' (not in top 20)' : ''}<br>NTS rank: ${nRank}${nRank === maxRank ? ' (not in top 20)' : ''}<extra></extra>`,
+            showlegend: false,
+          };
+        });
+
+        return (
+          <div className="chart-row">
+            <div className="chart-box">
+              <div className="chart-title-bar">
+                <h4>RRLS vs NTS Rank Comparison (Slope Chart)</h4>
+                <ChartInfo
+                  title="RRLS vs NTS Rank Comparison"
+                  description="Slope chart comparing how sources rank for RRLS (left) vs NTS (right). Lines connect the same source across both rankings. Red lines indicate large rank differences (8+), orange for moderate (4-7), light blue for similar ranks. Sources not in a top 20 are placed at rank 21."
+                />
+              </div>
+              <Plot
+                data={slopeTraces as unknown as React.ComponentProps<typeof Plot>['data']}
+                layout={{
+                  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+                  font: { color: '#e0e0e0' },
+                  margin: { t: 10, b: 30, l: 180, r: 180 },
+                  height: Math.max(500, allSources.length * 24),
+                  xaxis: {
+                    range: [-0.3, 1.3],
+                    tickvals: [0, 1],
+                    ticktext: ['RRLS Rank', 'NTS Rank'],
+                    fixedrange: true,
+                    showgrid: false,
+                  },
+                  yaxis: {
+                    autorange: 'reversed',
+                    range: [0.5, maxRank + 0.5],
+                    title: 'Rank (1 = highest)',
+                    dtick: 1,
+                    fixedrange: true,
+                  },
+                  showlegend: false,
+                  hovermode: 'closest',
+                }}
+                config={{ displayModeBar: false, responsive: true }}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="chart-row">
         <div className="chart-box">
