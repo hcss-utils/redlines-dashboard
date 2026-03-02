@@ -61,7 +61,7 @@ export default function Overview() {
       <div className="chart-row">
         <div className="chart-box">
           <div className="chart-title-bar">
-            <h4>RLS \u2192 RRLS \u2192 CRLS Pipeline</h4>
+            <h4>{'RLS \u2192 RRLS \u2192 CRLS Pipeline'}</h4>
             <ChartInfo
               title="RLS Pipeline Funnel"
               description="Funnel chart showing how text chunks are progressively filtered through the multi-pass annotation pipeline from raw chunks to confirmed RRLS and CRLS statements. Percentages show retention at each stage."
@@ -210,17 +210,31 @@ export default function Overview() {
           const color = diff >= 8 ? '#d62728' : diff >= 4 ? '#ff7f0e' : '#aec7e8';
           return {
             type: 'scatter' as const,
-            mode: 'lines+markers+text' as const,
+            mode: 'lines+markers' as const,
             x: [0, 1],
             y: [rRank, nRank],
-            text: [src, src],
-            textposition: ['middle left' as const, 'middle right' as const],
-            textfont: { size: 10, color: '#e0e0e0' },
             line: { color, width: diff >= 4 ? 2.5 : 1.5 },
             marker: { size: 8, color },
             hovertemplate: `${src}<br>RRLS rank: ${rRank}${rRank === maxRank ? ' (not in top 20)' : ''}<br>NTS rank: ${nRank}${nRank === maxRank ? ' (not in top 20)' : ''}<extra></extra>`,
             showlegend: false,
           };
+        });
+
+        // Build annotations with background for legibility
+        const annotations = allSources.flatMap(src => {
+          const rRank = rrlsRankMap[src] ?? maxRank;
+          const nRank = ntsRankMap[src] ?? maxRank;
+          return [
+            { x: 0, y: rRank, text: src, xanchor: 'right' as const, xshift: -10 },
+            { x: 1, y: nRank, text: src, xanchor: 'left' as const, xshift: 10 },
+          ].map(a => ({
+            ...a,
+            showarrow: false,
+            font: { size: 10, color: '#e0e0e0' },
+            bgcolor: 'rgba(26, 26, 46, 0.85)',
+            borderpad: 2,
+            yanchor: 'middle' as const,
+          }));
         });
 
         return (
@@ -238,10 +252,10 @@ export default function Overview() {
                 layout={{
                   paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
                   font: { color: '#e0e0e0' },
-                  margin: { t: 10, b: 30, l: 180, r: 180 },
-                  height: Math.max(500, allSources.length * 24),
+                  margin: { t: 10, b: 30, l: 200, r: 200 },
+                  height: Math.max(550, allSources.length * 26),
                   xaxis: {
-                    range: [-0.3, 1.3],
+                    range: [-0.15, 1.15],
                     tickvals: [0, 1],
                     ticktext: ['RRLS Rank', 'NTS Rank'],
                     fixedrange: true,
@@ -256,6 +270,7 @@ export default function Overview() {
                   },
                   showlegend: false,
                   hovermode: 'closest',
+                  annotations,
                 }}
                 config={{ displayModeBar: false, responsive: true }}
                 style={{ width: '100%' }}
@@ -271,12 +286,11 @@ export default function Overview() {
             <h4>Statements by Database — Absolute</h4>
             <ChartInfo
               title="By Database — Absolute"
-              description="Grouped bar chart comparing total chunks, RRLS, and NTS counts across source databases."
+              description="Grouped bar chart comparing RRLS and NTS confirmed statement counts across source databases."
             />
           </div>
           <Plot
             data={[
-              { type: 'bar', name: 'Total Chunks', x: comp.map(r => r.db), y: comp.map(r => r.total_chunks), marker: { color: '#a0a0b0' } },
               { type: 'bar', name: 'RRLS', x: comp.map(r => r.db), y: comp.map(r => r.rrls), marker: { color: '#1f77b4' } },
               { type: 'bar', name: 'NTS', x: comp.map(r => r.db), y: comp.map(r => r.nts), marker: { color: '#ff7f0e' } },
             ]}
@@ -337,7 +351,7 @@ export default function Overview() {
 
       <div className="info-box">
         <p>Date range: <strong>{stats.date_min}</strong> to <strong>{stats.date_max}</strong> | {chunks.length} unique sources across {stats.total_sources} institutions</p>
-        <p>Pipeline: 1st pass (GPT-4o screening) \u2192 2nd pass (GPT-5 mini taxonomy) \u2192 3rd pass (civilizational framing)</p>
+        <p>{'Pipeline: 1st pass (GPT-4o screening) \u2192 2nd pass (GPT-5 mini taxonomy) \u2192 3rd pass (civilizational framing)'}</p>
       </div>
     </div>
   );
