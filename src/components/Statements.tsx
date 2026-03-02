@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { load } from '../data';
+import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
 import ChartInfo from './ChartInfo';
 import type { RRLSStatement, NTSStatement } from '../types';
 
@@ -185,25 +186,45 @@ export default function Statements() {
               {stmt.target && <span className="stmt-target">Target: {highlightText(stmt.target, search)}</span>}
             </div>
             <div className="stmt-text">{stmt.context_text_span ? highlightText(stmt.context_text_span, search) : '(no text)'}</div>
-            {mode === 'rrls' && (
-              <div className="stmt-tags">
-                {(stmt as RRLSStatement).theme && <span className="tag tag-blue">{(stmt as RRLSStatement).theme}</span>}
-                {(stmt as RRLSStatement).audience && <span className="tag tag-green">{(stmt as RRLSStatement).audience}</span>}
-                {(stmt as RRLSStatement).nature_of_threat && <span className="tag tag-orange">{(stmt as RRLSStatement).nature_of_threat}</span>}
-                {(stmt as RRLSStatement).level_of_escalation && <span className="tag tag-red">{(stmt as RRLSStatement).level_of_escalation}</span>}
-                {(stmt as RRLSStatement).line_type && <span className="tag tag-purple">Line: {(stmt as RRLSStatement).line_type}</span>}
-                {(stmt as RRLSStatement).threat_type && <span className="tag tag-purple">Threat: {(stmt as RRLSStatement).threat_type}</span>}
-              </div>
-            )}
-            {mode === 'nts' && (
-              <div className="stmt-tags">
-                {(stmt as NTSStatement).nts_statement_type && <span className="tag tag-orange">{(stmt as NTSStatement).nts_statement_type}</span>}
-                {(stmt as NTSStatement).nts_threat_type && <span className="tag tag-red">{(stmt as NTSStatement).nts_threat_type}</span>}
-                {(stmt as NTSStatement).capability && <span className="tag tag-blue">{(stmt as NTSStatement).capability}</span>}
-                {(stmt as NTSStatement).tone && <span className="tag tag-purple">Tone: {(stmt as NTSStatement).tone}</span>}
-                {(stmt as NTSStatement).consequences && <span className="tag tag-red">Consequences: {(stmt as NTSStatement).consequences}</span>}
-              </div>
-            )}
+            {mode === 'rrls' && (() => {
+              const s = stmt as RRLSStatement;
+              const tag = (dim: string, val: string | undefined, label?: string) => {
+                if (!val) return null;
+                const c = getDimValueColor(RRLS_COLORS, dim, val, 0);
+                return <span key={dim} className="tag" style={{ background: `${c}33`, color: c }}>{label ? `${label}: ${val}` : val}</span>;
+              };
+              return (
+                <div className="stmt-tags">
+                  {tag('theme', s.theme)}
+                  {tag('audience', s.audience)}
+                  {tag('nature_of_threat', s.nature_of_threat)}
+                  {tag('level_of_escalation', s.level_of_escalation)}
+                  {tag('line', s.line_type, 'Line')}
+                  {tag('threat', s.threat_type, 'Threat')}
+                  {tag('specificity', s.specificity)}
+                  {tag('immediacy', s.immediacy)}
+                </div>
+              );
+            })()}
+            {mode === 'nts' && (() => {
+              const s = stmt as NTSStatement;
+              const tag = (dim: string, val: string | undefined, label?: string) => {
+                if (!val) return null;
+                const c = getDimValueColor(NTS_COLORS, dim, val, 0);
+                return <span key={dim} className="tag" style={{ background: `${c}33`, color: c }}>{label ? `${label}: ${val}` : val}</span>;
+              };
+              return (
+                <div className="stmt-tags">
+                  {tag('nts_statement_type', s.nts_statement_type)}
+                  {tag('nts_threat_type', s.nts_threat_type)}
+                  {tag('capability', s.capability)}
+                  {tag('tone', s.tone, 'Tone')}
+                  {tag('consequences', s.consequences, 'Consequences')}
+                  {tag('specificity', s.specificity)}
+                  {tag('conditionality', s.conditionality)}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
