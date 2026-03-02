@@ -153,9 +153,9 @@ export default function Overview() {
         </div>
         <div className="chart-box">
           <div className="chart-title-bar">
-            <h4>Classification Rate by Source — % of Chunks (Top 15)</h4>
+            <h4>Confirmed Statements by Source — % of Chunks (Top 15)</h4>
             <ChartInfo
-              title="Classification Rate by Source — Relative"
+              title="Confirmed Statements by Source — % of Chunks"
               description="What percentage of each source's text chunks are classified as RRLS or NTS. Normalizes for source size, revealing which sources have the densest red line or nuclear threat content."
             />
           </div>
@@ -196,6 +196,11 @@ export default function Overview() {
 
       {/* Slope chart: RRLS rank vs NTS rank */}
       {rrls.length > 0 && nts.length > 0 && (() => {
+        // Shorten long source names for display
+        const shortName = (s: string) =>
+          s.includes('Посольство России в США') ? 'Посольство России в США' :
+          s.length > 30 ? s.slice(0, 28) + '...' : s;
+
         const rrlsRanked = rrls.slice(0, 20).map((r, i) => ({ source: r.source, rank: i + 1, confirmed: r.confirmed ?? 0 }));
         const ntsRanked = nts.slice(0, 20).map((r, i) => ({ source: r.source, rank: i + 1, confirmed: r.confirmed ?? 0 }));
         const ntsRankMap: Record<string, number> = {};
@@ -207,36 +212,36 @@ export default function Overview() {
         const allSources = [...new Set([...rrlsRanked.map(r => r.source), ...ntsRanked.map(r => r.source)])];
         const maxRank = 21; // for sources not in top 20
 
+        // Dot-to-dot lines only (x from 0.15 to 0.85, leaving space for labels)
         const slopeTraces = allSources.map(src => {
           const rRank = rrlsRankMap[src] ?? maxRank;
           const nRank = ntsRankMap[src] ?? maxRank;
           const diff = Math.abs(rRank - nRank);
-          const color = diff >= 8 ? '#d62728' : diff >= 4 ? '#ff7f0e' : '#aec7e8';
+          const color = diff >= 8 ? '#d62728' : diff >= 4 ? '#ff7f0e' : 'rgba(160,160,176,0.4)';
           return {
             type: 'scatter' as const,
             mode: 'lines+markers' as const,
-            x: [0, 1],
+            x: [0.15, 0.85],
             y: [rRank, nRank],
-            line: { color, width: diff >= 4 ? 2.5 : 1.5 },
-            marker: { size: 8, color },
-            hovertemplate: `${src}<br>RRLS rank: ${rRank}${rRank === maxRank ? ' (not in top 20)' : ''}<br>NTS rank: ${nRank}${nRank === maxRank ? ' (not in top 20)' : ''}<extra></extra>`,
+            line: { color, width: diff >= 4 ? 2 : 1 },
+            marker: { size: 6, color: diff >= 8 ? '#d62728' : diff >= 4 ? '#ff7f0e' : '#a0a0b0' },
+            hovertemplate: `${shortName(src)}<br>RRLS rank: ${rRank}${rRank === maxRank ? ' (not in top 20)' : ''}<br>NTS rank: ${nRank}${nRank === maxRank ? ' (not in top 20)' : ''}<extra></extra>`,
             showlegend: false,
           };
         });
 
-        // Build annotations with background for legibility
+        // Labels: "N. Source Name" on left (right-aligned), "N. Source Name" on right (left-aligned)
         const annotations = allSources.flatMap(src => {
           const rRank = rrlsRankMap[src] ?? maxRank;
           const nRank = ntsRankMap[src] ?? maxRank;
+          const name = shortName(src);
           return [
-            { x: 0, y: rRank, text: src, xanchor: 'right' as const, xshift: -10 },
-            { x: 1, y: nRank, text: src, xanchor: 'left' as const, xshift: 10 },
+            { x: 0.14, y: rRank, text: `${rRank}. ${name}`, xanchor: 'right' as const },
+            { x: 0.86, y: nRank, text: `${nRank}. ${name}`, xanchor: 'left' as const },
           ].map(a => ({
             ...a,
             showarrow: false,
             font: { size: 10, color: '#e0e0e0' },
-            bgcolor: 'rgba(26, 26, 46, 0.85)',
-            borderpad: 2,
             yanchor: 'middle' as const,
           }));
         });
@@ -248,7 +253,7 @@ export default function Overview() {
                 <h4>RRLS vs NTS Rank Comparison (Slope Chart)</h4>
                 <ChartInfo
                   title="RRLS vs NTS Rank Comparison"
-                  description="Slope chart comparing how sources rank for RRLS (left) vs NTS (right). Lines connect the same source across both rankings. Red lines indicate large rank differences (8+), orange for moderate (4-7), light blue for similar ranks. Sources not in a top 20 are placed at rank 21."
+                  description="Slope chart comparing how sources rank for RRLS (left) vs NTS (right). Lines connect the same source across both rankings. Red lines indicate large rank differences (8+), orange for moderate (4-7), grey for similar ranks. Sources not in a top 20 are placed at rank 21."
                 />
               </div>
               <Plot
@@ -256,20 +261,22 @@ export default function Overview() {
                 layout={{
                   paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
                   font: { color: '#e0e0e0' },
-                  margin: { t: 10, b: 30, l: 200, r: 200 },
+                  margin: { t: 10, b: 30, l: 220, r: 220 },
                   height: Math.max(550, allSources.length * 26),
                   xaxis: {
-                    range: [-0.15, 1.15],
-                    tickvals: [0, 1],
+                    range: [0, 1],
+                    tickvals: [0.15, 0.85],
                     ticktext: ['RRLS Rank', 'NTS Rank'],
                     fixedrange: true,
                     showgrid: false,
+                    zeroline: false,
                   },
                   yaxis: {
                     autorange: 'reversed',
                     range: [0.5, maxRank + 0.5],
-                    title: 'Rank (1 = highest)',
-                    dtick: 1,
+                    showticklabels: false,
+                    showgrid: false,
+                    zeroline: false,
                     fixedrange: true,
                   },
                   showlegend: false,
@@ -313,9 +320,9 @@ export default function Overview() {
         </div>
         <div className="chart-box">
           <div className="chart-title-bar">
-            <h4>Classification Rate by Database — % of Chunks</h4>
+            <h4>Statements by Database — % of Chunks</h4>
             <ChartInfo
-              title="By Database — Relative"
+              title="Statements by Database — % of Chunks"
               description="What percentage of each database's chunks are classified as RRLS or NTS. Higher rates indicate databases with denser red line or nuclear threat content."
             />
           </div>
