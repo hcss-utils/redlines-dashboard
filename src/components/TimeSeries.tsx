@@ -41,6 +41,11 @@ export default function TimeSeries() {
   const ntsRate = allMonths.map(m => chunksM[m] ? ((ntsM[m] || 0) / chunksM[m]) * 100 : 0);
   const crlsRate = allMonths.map(m => chunksM[m] ? ((crlsM[m] || 0) / chunksM[m]) * 100 : 0);
 
+  // Consistent statement type colors
+  const RRLS_COLOR = '#1f77b4';
+  const NTS_COLOR = '#ff7f0e';
+  const CRLS_COLOR = '#d62728';
+
   return (
     <div className="tab-content">
       <h2 style={{ color: '#2ca02c' }}>Time Series Analysis</h2>
@@ -56,9 +61,9 @@ export default function TimeSeries() {
           </div>
           <Plot
             data={[
-              { type: 'scatter', mode: 'lines', name: 'RRLS', x: allMonths, y: allMonths.map(m => rrlsM[m] || 0), line: { color: '#1f77b4', width: 2 } },
-              { type: 'scatter', mode: 'lines', name: 'NTS', x: allMonths, y: allMonths.map(m => ntsM[m] || 0), line: { color: '#ff7f0e', width: 2 } },
-              { type: 'scatter', mode: 'lines', name: 'CRLS', x: allMonths, y: allMonths.map(m => crlsM[m] || 0), line: { color: '#d62728', width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'RRLS', x: allMonths, y: allMonths.map(m => rrlsM[m] || 0), line: { color: RRLS_COLOR, width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'NTS', x: allMonths, y: allMonths.map(m => ntsM[m] || 0), line: { color: NTS_COLOR, width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'CRLS', x: allMonths, y: allMonths.map(m => crlsM[m] || 0), line: { color: CRLS_COLOR, width: 2 } },
             ]}
             layout={{
               paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -85,9 +90,9 @@ export default function TimeSeries() {
           </div>
           <Plot
             data={[
-              { type: 'scatter', mode: 'lines', name: 'RRLS %', x: allMonths, y: rrlsRate, line: { color: '#1f77b4', width: 2 } },
-              { type: 'scatter', mode: 'lines', name: 'NTS %', x: allMonths, y: ntsRate, line: { color: '#ff7f0e', width: 2 } },
-              { type: 'scatter', mode: 'lines', name: 'CRLS %', x: allMonths, y: crlsRate, line: { color: '#d62728', width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'RRLS %', x: allMonths, y: rrlsRate, line: { color: RRLS_COLOR, width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'NTS %', x: allMonths, y: ntsRate, line: { color: NTS_COLOR, width: 2 } },
+              { type: 'scatter', mode: 'lines', name: 'CRLS %', x: allMonths, y: crlsRate, line: { color: CRLS_COLOR, width: 2 } },
             ]}
             layout={{
               paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -115,8 +120,8 @@ export default function TimeSeries() {
             </div>
             <Plot
               data={[
-                { type: 'bar', name: 'RRLS', x: allMonths, y: allMonths.map(m => rrlsM[m] || 0), marker: { color: '#1f77b4', opacity: 0.7 }, yaxis: 'y' },
-                { type: 'scatter', mode: 'lines', name: 'Personnel Losses', x: warPers.map(r => r.month), y: warPers.map(r => r.personnel_losses ?? 0), line: { color: '#d62728', width: 2 }, yaxis: 'y2' },
+                { type: 'bar', name: 'RRLS', x: allMonths, y: allMonths.map(m => rrlsM[m] || 0), marker: { color: RRLS_COLOR, opacity: 0.7 }, yaxis: 'y' },
+                { type: 'scatter', mode: 'lines', name: 'Personnel Losses', x: warPers.map(r => r.month), y: warPers.map(r => r.personnel_losses ?? 0), line: { color: CRLS_COLOR, width: 2 }, yaxis: 'y2' },
               ]}
               layout={{
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -146,8 +151,8 @@ export default function TimeSeries() {
             </div>
             <Plot
               data={[
-                { type: 'bar', name: 'NTS', x: allMonths, y: allMonths.map(m => ntsM[m] || 0), marker: { color: '#ff7f0e', opacity: 0.7 }, yaxis: 'y' },
-                { type: 'scatter', mode: 'lines', name: 'ACLED Events', x: warAcled.map(r => r.month), y: warAcled.map(r => r.events ?? 0), line: { color: '#d62728', width: 2 }, yaxis: 'y2' },
+                { type: 'bar', name: 'NTS', x: allMonths, y: allMonths.map(m => ntsM[m] || 0), marker: { color: NTS_COLOR, opacity: 0.7 }, yaxis: 'y' },
+                { type: 'scatter', mode: 'lines', name: 'ACLED Events', x: warAcled.map(r => r.month), y: warAcled.map(r => r.events ?? 0), line: { color: CRLS_COLOR, width: 2 }, yaxis: 'y2' },
               ]}
               layout={{
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
