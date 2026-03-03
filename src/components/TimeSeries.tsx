@@ -44,7 +44,7 @@ export default function TimeSeries() {
   // Consistent statement type colors
   const RRLS_COLOR = '#d32f2f';
   const NTS_COLOR = '#fdd835';
-  const CRLS_COLOR = '#d62728';
+  const CRLS_COLOR = '#9c27b0';
 
   return (
     <div className="tab-content">
