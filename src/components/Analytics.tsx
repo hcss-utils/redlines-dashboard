@@ -11,39 +11,10 @@ const PLOT_BG = 'transparent';
 const FONT = { color: '#e0e0e0' };
 const GRID = { color: 'rgba(255,255,255,0.08)' };
 
-const RHETORIC_OPTS = [
-  { value: 'rrls_count', label: 'RRLS Count' },
-  { value: 'rrls_intensity_mean', label: 'RRLS Intensity (combined)' },
-  { value: 'rrls_line_intensity_mean', label: 'RRLS Line Intensity' },
-  { value: 'rrls_threat_intensity_mean', label: 'RRLS Threat Intensity' },
-  { value: 'nts_count', label: 'NTS Count' },
-  { value: 'nts_severity_mean', label: 'NTS Severity (combined)' },
-  { value: 'nts_tone_mean', label: 'NTS Tone' },
-  { value: 'nts_cond_mean', label: 'NTS Conditionality' },
-  { value: 'nts_conseq_mean', label: 'NTS Consequences' },
-  { value: 'nts_spec_mean', label: 'NTS Specificity' },
-  { value: 'crls_count', label: 'CRLS Count' },
-];
-
-const ACTION_OPTS = [
-  { value: 'acled_events', label: 'ACLED Events' },
-  { value: 'acled_fatalities', label: 'ACLED Fatalities' },
-  { value: 'acled_battles', label: 'ACLED Battles' },
-  { value: 'acled_explosions', label: 'ACLED Explosions/Remote Violence' },
-  { value: 'personnel_delta', label: 'Personnel Losses' },
-  { value: 'tank_delta', label: 'Tank Losses' },
-  { value: 'apc_delta', label: 'APC Losses' },
-  { value: 'artillery_delta', label: 'Artillery Losses' },
-  { value: 'drone_delta', label: 'Drone Losses' },
-  { value: 'missiles_launched', label: 'Missiles Launched' },
-  { value: 'missiles_destroyed', label: 'Missiles Destroyed' },
-  { value: 'aid_total_eur', label: 'Total Aid (EUR)' },
-  { value: 'aid_military_eur', label: 'Military Aid (EUR)' },
-  { value: 'new_sanctions_entities', label: 'New Sanctions' },
-  { value: 'gdelt_tone', label: 'GDELT Tone' },
-  { value: 'gdelt_nuclear_quotes', label: 'GDELT Nuclear Quotes' },
-  { value: 'gdelt_escalation_quotes', label: 'GDELT Escalation Quotes' },
-];
+// Built dynamically from metadata; these are fallbacks until metadata loads
+function buildOpts(vars: string[], labels: Record<string, string>) {
+  return vars.map(v => ({ value: v, label: labels[v] ?? v }));
+}
 
 export default function Analytics() {
   const [ts, setTs] = useState<Record<string, unknown>[] | null>(null);
@@ -92,6 +63,10 @@ export default function Analytics() {
   }, [eventStudy, esResponse]);
 
   if (!ts || !meta) return <div className="loading">Loading analytics data...</div>;
+
+  // Build dropdowns dynamically from metadata (includes actor-level vars)
+  const RHETORIC_OPTS = buildOpts(meta.rhetoric_vars, meta.variables);
+  const ACTION_OPTS = buildOpts(meta.action_vars.concat(meta.media_vars), meta.variables);
 
   const rhetLabel = RHETORIC_OPTS.find(o => o.value === rhetVar)?.label ?? rhetVar;
   const actLabel = ACTION_OPTS.find(o => o.value === actVar)?.label ?? actVar;
