@@ -2,17 +2,21 @@
 """Export redlines annotation data to static JSON for the dashboard."""
 
 import json
+import os
 import datetime as dt
 from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
-DB = dict(host="REDACTED_HOST", port=5432, dbname="redlines",
-          user="postgres", password="REDACTED_PASSWORD")
+_HOST = os.environ.get("DB_HOST", "REDACTED_HOST")
+_PORT = int(os.environ.get("DB_PORT", "5432"))
+_USER = os.environ.get("DB_USER", "postgres")
+_PASS = os.environ.get("DB_PASSWORD", "REDACTED_PASSWORD")
+
+DB = dict(host=_HOST, port=_PORT, dbname="redlines", user=_USER, password=_PASS)
 
 # Also connect to war_datasets for context data
-WAR_DB = dict(host="REDACTED_HOST", port=5432, dbname="war_datasets",
-              user="postgres", password="REDACTED_PASSWORD")
+WAR_DB = dict(host=_HOST, port=_PORT, dbname="war_datasets", user=_USER, password=_PASS)
 
 OUT = Path(__file__).resolve().parent.parent / "public" / "data"
 OUT.mkdir(parents=True, exist_ok=True)
