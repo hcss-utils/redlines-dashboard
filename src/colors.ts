@@ -170,8 +170,8 @@ export const RRLS_COLORS: Record<string, Record<string, string>> = {
 export const NTS_COLORS: Record<string, Record<string, string>> = {
   // Categorical dimensions
   nts_statement_type: {
-    'Nuclear Threat Statement':    '#d62728',
-    'Nuclear Stability Statement': '#1f77b4',
+    'Nuclear Threat Statement':    '#fdd835',
+    'Nuclear Stability Statement': '#90caf9',
   },
   nts_threat_type: {
     'Explicit Threat': '#d62728',
