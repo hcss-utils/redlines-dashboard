@@ -141,6 +141,75 @@ def q(conn, sql):
         return [dict(r) for r in cur.fetchall()]
 
 
+# ── Actor classification ─────────────────────────────────────────────────────
+
+# Target patterns → actor group
+_TARGET_RULES = [
+    ("us",       ["united states", "washington", "u.s.", "usa", "american"]),
+    ("ukraine",  ["ukraine", "kyiv", "zelensky", "ukrainian"]),
+    ("nato",     ["nato"]),
+    ("eu",       ["european union", "eu ", "brussels"]),
+    ("uk",       ["united kingdom", "britain", "british", "london"]),
+    ("west",     ["west", "western"]),
+    ("japan",    ["japan", "japanese", "tokyo"]),
+    ("china",    ["china", "chinese", "beijing"]),
+    ("poland",   ["poland", "polish", "warsaw"]),
+    ("germany",  ["germany", "german", "berlin"]),
+    ("france",   ["france", "french", "paris"]),
+]
+
+# Donor name → actor group
+_DONOR_RULES = [
+    ("us",       ["United States"]),
+    ("eu",       ["EU (Commission and Council)", "European Investment Bank",
+                  "European Bank for Reconstruction and Development"]),
+    ("uk",       ["United Kingdom"]),
+    ("germany",  ["Germany"]),
+    ("japan",    ["Japan"]),
+    ("canada",   ["Canada"]),
+    ("france",   ["France"]),
+    ("denmark",  ["Denmark"]),
+    ("netherlands", ["Netherlands"]),
+    ("sweden",   ["Sweden"]),
+    ("norway",   ["Norway"]),
+    ("poland",   ["Poland"]),
+]
+
+
+def _classify_actor(text: str, rules: list) -> str:
+    """Classify a text string into an actor group."""
+    t = text.lower().strip()
+    for group, patterns in rules:
+        for p in patterns:
+            if p.lower() in t:
+                return group
+    return "other"
+
+
+def _classify_targets(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
+    """Pivot target-level rows into weekly columns per actor group."""
+    if df.empty:
+        return pd.DataFrame(columns=["week"])
+    df["week"] = pd.to_datetime(df["week"])
+    df["actor"] = df["target"].apply(lambda t: _classify_actor(str(t), _TARGET_RULES))
+    grouped = df.groupby(["week", "actor"])["cnt"].sum().reset_index()
+    pivoted = grouped.pivot(index="week", columns="actor", values="cnt").fillna(0)
+    pivoted.columns = [f"{prefix}_tgt_{c}" for c in pivoted.columns]
+    return pivoted.reset_index()
+
+
+def _classify_donors(df: pd.DataFrame) -> pd.DataFrame:
+    """Pivot donor-level rows into weekly columns per actor group."""
+    if df.empty:
+        return pd.DataFrame(columns=["week"])
+    df["week"] = pd.to_datetime(df["week"])
+    df["actor"] = df["donor"].apply(lambda d: _classify_actor(str(d), _DONOR_RULES))
+    grouped = df.groupby(["week", "actor"])["value"].sum().reset_index()
+    pivoted = grouped.pivot(index="week", columns="actor", values="value").fillna(0)
+    pivoted.columns = [f"aid_{c}_eur" for c in pivoted.columns]
+    return pivoted.reset_index()
+
+
 # ── 1. Build weekly time series ──────────────────────────────────────────────
 
 def build_weekly_panel():
@@ -222,6 +291,38 @@ def build_weekly_panel():
     df_crls = pd.DataFrame(crls_rows)
     if not df_crls.empty:
         df_crls["week"] = pd.to_datetime(df_crls["week"])
+
+    # ── Actor-level RRLS: target classification ──
+    print("  Querying RRLS by target actor...")
+    rrls_target_rows = q(rl, """
+        SELECT DATE_TRUNC('week', d.date)::date AS week,
+               ra.target,
+               COUNT(*) AS cnt
+        FROM rls_annotation ra
+        JOIN document_chunk dc ON ra.chunk_id = dc.id
+        JOIN document d ON dc.document_id = d.id
+        WHERE ra.is_relevant AND d.date IS NOT NULL AND d.date >= '2022-02-21'
+              AND ra.target IS NOT NULL
+        GROUP BY DATE_TRUNC('week', d.date), ra.target
+        ORDER BY week
+    """)
+    df_rrls_tgt = _classify_targets(pd.DataFrame(rrls_target_rows), "rrls")
+
+    # ── Actor-level NTS: target classification ──
+    print("  Querying NTS by target actor...")
+    nts_target_rows = q(rl, """
+        SELECT DATE_TRUNC('week', d.date)::date AS week,
+               na.target,
+               COUNT(*) AS cnt
+        FROM nts_annotation na
+        JOIN document_chunk dc ON na.chunk_id = dc.id
+        JOIN document d ON dc.document_id = d.id
+        WHERE na.is_relevant AND d.date IS NOT NULL AND d.date >= '2022-02-21'
+              AND na.target IS NOT NULL
+        GROUP BY DATE_TRUNC('week', d.date), na.target
+        ORDER BY week
+    """)
+    df_nts_tgt = _classify_targets(pd.DataFrame(nts_target_rows), "nts")
 
     rl.close()
 
@@ -329,6 +430,19 @@ def build_weekly_panel():
     if not df_sanctions.empty:
         df_sanctions["week"] = pd.to_datetime(df_sanctions["week"])
 
+    print("  Querying aid by donor...")
+    aid_donor_rows = q(war, """
+        SELECT DATE_TRUNC('week', announcement_date_clean)::date AS week,
+               donor,
+               SUM(NULLIF(tot_sub_activity_value_eur, '')::numeric) AS value
+        FROM economic_data.kiel_ukraine_aid
+        WHERE announcement_date_clean >= '2022-02-21'
+              AND NULLIF(tot_sub_activity_value_eur, '') IS NOT NULL
+        GROUP BY DATE_TRUNC('week', announcement_date_clean), donor
+        ORDER BY week
+    """)
+    df_aid_donor = _classify_donors(pd.DataFrame(aid_donor_rows))
+
     print("  Querying GDELT weekly...")
     gdelt_rows = q(war, """
         SELECT DATE_TRUNC('week', week)::date AS gdelt_week,
@@ -366,6 +480,8 @@ def build_weekly_panel():
         "acled": df_acled, "pers": df_pers, "equip": df_equip,
         "missiles": df_missiles, "aid": df_aid, "sanctions": df_sanctions,
         "gdelt": df_gdelt,
+        "rrls_tgt": df_rrls_tgt, "nts_tgt": df_nts_tgt,
+        "aid_donor": df_aid_donor,
     }
     for name, df in dfs.items():
         if not df.empty and "week" in df.columns:
@@ -380,6 +496,11 @@ def build_weekly_panel():
         "new_sanctions_entities",
         "gdelt_nuclear_quotes", "gdelt_escalation_quotes",
     ]
+    # Also fill all actor-level columns with 0
+    actor_cols = [c for c in panel.columns
+                  if c.startswith(("rrls_tgt_", "nts_tgt_", "aid_")) and c != "aid_total_eur" and c != "aid_military_eur"]
+    count_cols += actor_cols
+
     for c in count_cols:
         if c in panel.columns:
             panel[c] = pd.to_numeric(panel[c], errors="coerce").fillna(0)
@@ -399,7 +520,26 @@ def build_weekly_panel():
     if "nts_severity_mean" in panel.columns and "nts_count" in panel.columns:
         panel.loc[panel["nts_count"] == 0, "nts_severity_mean"] = 0
 
+    # ── Dynamically register actor-level variables ──
+    for c in panel.columns:
+        if c.startswith("rrls_tgt_") and c not in VAR_LABELS:
+            actor = c.replace("rrls_tgt_", "").upper()
+            VAR_LABELS[c] = f"RRLS targeting {actor}"
+            if c not in RHETORIC:
+                RHETORIC.append(c)
+        elif c.startswith("nts_tgt_") and c not in VAR_LABELS:
+            actor = c.replace("nts_tgt_", "").upper()
+            VAR_LABELS[c] = f"NTS targeting {actor}"
+            if c not in RHETORIC:
+                RHETORIC.append(c)
+        elif c.startswith("aid_") and c.endswith("_eur") and c not in VAR_LABELS:
+            actor = c.replace("aid_", "").replace("_eur", "").upper()
+            VAR_LABELS[c] = f"Aid from {actor} (EUR)"
+            if c not in ACTION:
+                ACTION.append(c)
+
     print(f"  Panel: {len(panel)} weeks × {len(panel.columns)} columns")
+    print(f"  Actor vars: {len([c for c in panel.columns if 'tgt_' in c or (c.startswith('aid_') and c not in ['aid_total_eur', 'aid_military_eur'])])} columns")
     return panel
 
 
