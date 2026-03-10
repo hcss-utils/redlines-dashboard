@@ -134,7 +134,50 @@ export interface ComparativeRow {
   nts: number;
 }
 
-export type TabId = 'overview' | 'rrls' | 'nts' | 'crls' | 'timeseries' | 'statements' | 'analytics';
+export type TabId = 'overview' | 'rrls' | 'nts' | 'crls' | 'lrls' | 'timeseries' | 'statements' | 'analytics';
+
+// ── Literal Red Lines (LRLS) types ─────────────────────────────────────────
+
+export interface LRLSStats {
+  total_matches: number;
+  unique_chunks: number;
+  ru_matches: number;
+  en_matches: number;
+  ru_chunks: number;
+  en_chunks: number;
+}
+
+export interface LRLSLangRow {
+  lang: string;
+  matches: number;
+  chunks: number;
+}
+
+export interface LRLSPhraseRow {
+  matched_phrase: string;
+  lang: string;
+  count: number;
+}
+
+export interface LRLSSourceRow {
+  source: string;
+  db: string;
+  count: number;
+  ru_count: number;
+  en_count: number;
+  unique_chunks: number;
+}
+
+export interface LRLSMatch {
+  chunk_id: number;
+  lang: string;
+  matched_phrase: string;
+  sentence: string;
+  paragraph: string;
+  source: string;
+  db: string;
+  date: string;
+}
 
 // ── Causal Analytics types ─────────────────────────────────────────────────
 

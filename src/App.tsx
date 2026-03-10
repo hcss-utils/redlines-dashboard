@@ -5,6 +5,7 @@ import Overview from './components/Overview';
 import RRLSExplorer from './components/RRLSExplorer';
 import NTSExplorer from './components/NTSExplorer';
 import CRLSExplorer from './components/CRLSExplorer';
+import LRLSExplorer from './components/LRLSExplorer';
 import TimeSeries from './components/TimeSeries';
 import Statements from './components/Statements';
 import Analytics from './components/Analytics';
@@ -34,6 +35,7 @@ export default function App() {
         {tab === 'rrls' && <RRLSExplorer />}
         {tab === 'nts' && <NTSExplorer />}
         {tab === 'crls' && <CRLSExplorer />}
+        {tab === 'lrls' && <LRLSExplorer />}
         {tab === 'timeseries' && <TimeSeries />}
         {tab === 'statements' && <Statements />}
         {tab === 'analytics' && <Analytics />}
