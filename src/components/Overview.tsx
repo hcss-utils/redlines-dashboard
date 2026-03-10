@@ -716,7 +716,6 @@ export default function Overview() {
                     (sourceFilter === 'federation' && r.source_category === 'federation') ||
                     (sourceFilter === 'telegram' && r.source_category === 'telegram')
                   );
-                  console.log('Docs filter:', sourceFilter, 'Filtered data length:', filteredData.length, 'Total data:', docsMonthlyBySource.length);
                   const monthsSet = new Set(filteredData.map(d => d.month));
                   const months = Array.from(monthsSet).sort();
                   return months.map(month => {
