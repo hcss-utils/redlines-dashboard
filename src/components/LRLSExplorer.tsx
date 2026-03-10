@@ -38,10 +38,10 @@ export default function LRLSExplorer() {
 
   // Filter matches by source for timeline
   const filteredMatches = sourceFilter === 'all' ? matches : matches.filter(m => {
-    if (sourceFilter === 'duma') return m.source === 'duma.gov.ru';
-    if (sourceFilter === 'mid') return m.source === 'МИД России 🇷🇺';
     if (sourceFilter === 'kremlin') return m.source === 'kremlin.ru';
-    if (sourceFilter === 'marina') return m.source === 'Marina Akhmedova';
+    if (sourceFilter === 'duma') return m.source === 'duma.gov.ru';
+    if (sourceFilter === 'federation') return m.source === 'council.gov.ru';
+    if (sourceFilter === 'telegram') return m.db === 'telegram_official';
     return true;
   });
 
@@ -154,10 +154,10 @@ export default function LRLSExplorer() {
                 }}
               >
                 <option value="all">All Sources</option>
-                <option value="duma">State Duma</option>
-                <option value="mid">MID Russia</option>
                 <option value="kremlin">Kremlin</option>
-                <option value="marina">Marina Akhmedova</option>
+                <option value="duma">State Duma</option>
+                <option value="federation">Federation Council</option>
+                <option value="telegram">Official Telegram</option>
               </select>
               <button
                 onClick={() => setViewMode('absolute')}
