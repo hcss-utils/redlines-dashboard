@@ -14,7 +14,7 @@ const PAGE_SIZE = 15;
 export default function LRLSExplorer() {
   const [stats, setStats] = useState<LRLSStats | null>(null);
   const [byLang, setByLang] = useState<LRLSLangRow[]>([]);
-  const [monthly, setMonthly] = useState<MonthlyRow & { lang: string }[]>([]);
+  const [monthly, setMonthly] = useState<(MonthlyRow & { lang: string })[]>([]);
   const [bySource, setBySource] = useState<LRLSSourceRow[]>([]);
   const [topPhrases, setTopPhrases] = useState<LRLSPhraseRow[]>([]);
   const [matches, setMatches] = useState<LRLSMatch[]>([]);
