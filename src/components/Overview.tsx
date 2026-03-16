@@ -40,8 +40,8 @@ export default function Overview() {
   const funnelLabels = ['Total Chunks', '1st Pass RLS', '2nd Pass RRLS', '3rd Pass', 'CRLS'];
   const funnelVals = [stats.total_chunks, stats.fpa_rls_relevant, stats.rls2_confirmed, stats.rls3_confirmed, stats.crls_count];
 
-  const ntsFunnel = ['Total Chunks', '\u2622 1st Pass NTS', '\u2622 2nd Pass NTS'];
-  const ntsVals = [stats.total_chunks, stats.fpa_nts_relevant, stats.nts2_confirmed];
+  const ntsFunnel = ['Total Chunks', '\u2622 NTS Candidates', '\u2622 Confirmed NTS'];
+  const ntsVals = [stats.total_chunks, stats.nts2_confirmed, stats.nts2_confirmed];
 
   const top = rrls.slice(0, 15);
 
@@ -115,7 +115,7 @@ export default function Overview() {
             <h4>{'\u2622'} NTS Pipeline</h4>
             <ChartInfo
               title="NTS Pipeline Funnel"
-              description="Funnel chart showing the nuclear threat statement annotation pipeline, from initial text chunks through first-pass screening to confirmed NTS statements. Percentages show retention at each stage."
+              description="Funnel chart showing the NTS annotation pipeline. NTS candidates include both chunks flagged by the LLM 1st pass and chunks that matched nuclear-related regex patterns and went directly to 2nd pass annotation, bypassing LLM screening."
             />
           </div>
           <Plot
@@ -872,6 +872,7 @@ export default function Overview() {
       <div className="info-box">
         <p>Date range: <strong>{stats.date_min}</strong> to <strong>{stats.date_max}</strong> | {chunks.length} unique sources across {stats.total_sources} institutions</p>
         <p>{'Pipeline: 1st pass (openai/gpt-oss-120b) \u2192 2nd pass (openai/gpt-oss-120b taxonomy) \u2192 3rd pass (gpt-5-mini \u2014 civilizational framing)'}</p>
+        <p>{'Note: NTS candidates include chunks flagged by LLM screening and chunks matching nuclear regex patterns that were routed directly to 2nd pass annotation, bypassing LLM screening.'}</p>
       </div>
     </div>
   );
