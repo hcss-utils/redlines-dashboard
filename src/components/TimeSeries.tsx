@@ -66,7 +66,8 @@ export default function TimeSeries() {
   // Consistent statement type colors
   const RRLS_COLOR = '#d32f2f';
   const NTS_COLOR = '#fdd835';
-  const CRLS_COLOR = '#d62728';
+  const CRLS_COLOR = '#9467bd';      // purple — distinct from RRLS red
+  const PERSONNEL_COLOR = '#17becf'; // teal for personnel losses line
 
   return (
     <div className="tab-content">
@@ -205,7 +206,7 @@ export default function TimeSeries() {
             <Plot
               data={[
                 { type: 'bar', name: 'RRLS', x: allMonths, y: allMonths.map(m => rrlsM[m] || 0), marker: { color: RRLS_COLOR, opacity: 0.7 }, yaxis: 'y' },
-                { type: 'scatter', mode: 'lines', name: 'Personnel Losses', x: warPers.map(r => r.month), y: warPers.map(r => r.personnel_losses ?? 0), line: { color: CRLS_COLOR, width: 2 }, yaxis: 'y2' },
+                { type: 'scatter', mode: 'lines', name: 'Personnel Losses', x: warPers.map(r => r.month), y: warPers.map(r => r.personnel_losses ?? 0), line: { color: PERSONNEL_COLOR, width: 2 }, yaxis: 'y2' },
               ]}
               layout={{
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -235,24 +236,26 @@ export default function TimeSeries() {
         <div className="chart-row">
           <div className="chart-box">
             <div className="chart-title-bar">
-              <h4>{'\u2622'} NTS vs. ACLED Conflict Events</h4>
+              <h4>{'\u2622'} NTS &amp; RRLS vs. ACLED Conflict Events (from 2022)</h4>
               <ChartInfo
-                title="NTS vs. ACLED Events"
-                description="Dual-axis chart comparing monthly NTS counts (bars, left axis) with ACLED conflict events (line, right axis). Shows whether nuclear threat rhetoric correlates with conflict intensity."
+                title="NTS & RRLS vs. ACLED Events"
+                description="Dual-axis chart comparing monthly NTS and RRLS counts (bars, left axis) with ACLED conflict events (line, right axis). Data starts from 2022 to match ACLED availability. Shows whether rhetoric correlates with conflict intensity."
               />
             </div>
             <Plot
               data={[
-                { type: 'bar', name: '\u2622 NTS', x: allMonths, y: allMonths.map(m => ntsM[m] || 0), marker: { color: NTS_COLOR, opacity: 0.7 }, yaxis: 'y' },
-                { type: 'scatter', mode: 'lines', name: 'ACLED Events', x: warAcled.map(r => r.month), y: warAcled.map(r => r.events ?? 0), line: { color: CRLS_COLOR, width: 2 }, yaxis: 'y2' },
+                { type: 'bar', name: '\u2622 NTS', x: warAcled.map(r => r.month), y: warAcled.map(r => ntsM[r.month] || 0), marker: { color: NTS_COLOR, opacity: 0.8 }, yaxis: 'y' },
+                { type: 'bar', name: 'RRLS', x: warAcled.map(r => r.month), y: warAcled.map(r => rrlsM[r.month] || 0), marker: { color: RRLS_COLOR, opacity: 0.6 }, yaxis: 'y' },
+                { type: 'scatter', mode: 'lines', name: 'ACLED Events', x: warAcled.map(r => r.month), y: warAcled.map(r => r.events ?? 0), line: { color: PERSONNEL_COLOR, width: 2 }, yaxis: 'y2' },
               ]}
               layout={{
+                barmode: 'group',
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
                 font: { color: '#e0e0e0' },
                 margin: { t: 10, b: 40, l: 60, r: 60 },
                 height: 350,
                 legend: { orientation: 'h', y: 1.1 },
-                yaxis: { title: '\u2622 NTS Count', side: 'left' },
+                yaxis: { title: 'Statement Count', side: 'left' },
                 yaxis2: { title: 'ACLED Events', side: 'right', overlaying: 'y' },
               }}
               config={{ displayModeBar: false, responsive: true }}
@@ -260,9 +263,14 @@ export default function TimeSeries() {
                 const pt = e.points?.[0];
                 if (!pt) return;
                 const month = pt.x;
-                if (!pt.data.name.includes('NTS')) return;
-                const matching = ntsStmts.filter(s => s.date?.startsWith(month));
-                setDrilldown({ title: `NTS (${month})`, stmts: matching, mode: 'nts' });
+                const name = pt.data.name;
+                if (name.includes('NTS')) {
+                  const matching = ntsStmts.filter(s => s.date?.startsWith(month));
+                  setDrilldown({ title: `NTS (${month})`, stmts: matching, mode: 'nts' });
+                } else if (name === 'RRLS') {
+                  const matching = rrlsStmts.filter(s => s.date?.startsWith(month));
+                  setDrilldown({ title: `RRLS (${month})`, stmts: matching, mode: 'rrls' });
+                }
               }}
               style={{ width: '100%', cursor: 'pointer' }}
             />
