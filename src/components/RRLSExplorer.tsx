@@ -228,16 +228,18 @@ export default function RRLSExplorer() {
 
   const dimLabel = DIM_LABELS[selectedDim] || selectedDim;
 
-  // Group low-count values (≤ 2) into "Other" when there are enough distinct values
+  // Group values below 1% of total (min 5 values before grouping kicks in)
   const groupedRows = (() => {
     if (rows.length <= 5) return rows;
-    const main = rows.filter(r => r.count > 2);
-    const small = rows.filter(r => r.count <= 2);
+    const threshold = Math.max(Math.floor(totalCount * 0.01), 3);
+    const main = rows.filter(r => r.count > threshold);
+    const small = rows.filter(r => r.count <= threshold);
     if (!small.length) return rows;
     const otherTotal = small.reduce((s, r) => s + r.count, 0);
     return [...main, { value: 'Other', count: otherTotal }];
   })();
-  const smallValues = new Set(rows.filter(r => r.count <= 2).map(r => r.value));
+  const smallThreshold = Math.max(Math.floor(totalCount * 0.01), 3);
+  const smallValues = new Set(rows.filter(r => r.count <= smallThreshold).map(r => r.value));
 
   return (
     <div className="tab-content">

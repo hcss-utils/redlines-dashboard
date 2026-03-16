@@ -10,6 +10,7 @@ export default function TimeSeries() {
   const [rrls, setRrls] = useState<MonthlyRow[]>([]);
   const [nts, setNts] = useState<MonthlyRow[]>([]);
   const [crls, setCrls] = useState<MonthlyRow[]>([]);
+  const [lrls, setLrls] = useState<{ month: string; lang: string; count: number }[]>([]);
   const [chunks, setChunks] = useState<{ month: string; total_chunks: number }[]>([]);
   const [warPers, setWarPers] = useState<WarContextRow[]>([]);
   const [warAcled, setWarAcled] = useState<WarContextRow[]>([]);
@@ -23,6 +24,7 @@ export default function TimeSeries() {
     load<MonthlyRow[]>('rrls_monthly.json').then(setRrls);
     load<MonthlyRow[]>('nts_monthly.json').then(setNts);
     load<MonthlyRow[]>('crls_monthly.json').then(setCrls);
+    load<{ month: string; lang: string; count: number }[]>('lrls_monthly.json').then(setLrls);
     load<{ month: string; total_chunks: number }[]>('chunks_monthly.json').then(setChunks);
     load<WarContextRow[]>('war_context_personnel.json').then(setWarPers);
     load<WarContextRow[]>('war_context_acled.json').then(setWarAcled);
@@ -52,16 +54,19 @@ export default function TimeSeries() {
   const rrlsM = agg(rrls);
   const ntsM = agg(nts);
   const crlsM = agg(crls);
+  const lrlsM: Record<string, number> = {};
+  for (const r of lrls) lrlsM[r.month] = (lrlsM[r.month] || 0) + r.count;
   const chunksM: Record<string, number> = {};
   for (const r of chunks) chunksM[r.month] = r.total_chunks;
 
   const allMonths = [...new Set([
-    ...Object.keys(rrlsM), ...Object.keys(ntsM), ...Object.keys(crlsM),
+    ...Object.keys(rrlsM), ...Object.keys(ntsM), ...Object.keys(crlsM), ...Object.keys(lrlsM),
   ])].sort();
 
   const rrlsRate = allMonths.map(m => chunksM[m] ? ((rrlsM[m] || 0) / chunksM[m]) * 100 : 0);
   const ntsRate = allMonths.map(m => chunksM[m] ? ((ntsM[m] || 0) / chunksM[m]) * 100 : 0);
   const crlsRate = allMonths.map(m => chunksM[m] ? ((crlsM[m] || 0) / chunksM[m]) * 100 : 0);
+  const lrlsRate = allMonths.map(m => chunksM[m] ? ((lrlsM[m] || 0) / chunksM[m]) * 100 : 0);
 
   // Consistent statement type colors
   const RRLS_COLOR = '#d32f2f';
@@ -147,6 +152,14 @@ export default function TimeSeries() {
                 y: viewMode === 'absolute' ? allMonths.map(m => crlsM[m] || 0) : crlsRate,
                 line: { color: CRLS_COLOR, width: 2 }
               },
+              {
+                type: 'scatter',
+                mode: 'lines',
+                name: viewMode === 'absolute' ? 'LRLS' : 'LRLS %',
+                x: allMonths,
+                y: viewMode === 'absolute' ? allMonths.map(m => lrlsM[m] || 0) : lrlsRate,
+                line: { color: '#2ca02c', width: 2 }
+              },
             ]}
             layout={{
               paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -184,7 +197,7 @@ export default function TimeSeries() {
             fontSize: '14px',
             textAlign: 'center'
           }}>
-            <strong>Total Statements: RRLS={Object.values(rrlsM).reduce((a,b) => a+b, 0)}, NTS={Object.values(ntsM).reduce((a,b) => a+b, 0)}, CRLS={Object.values(crlsM).reduce((a,b) => a+b, 0)}</strong>
+            <strong>Total Statements: RRLS={Object.values(rrlsM).reduce((a,b) => a+b, 0)}, NTS={Object.values(ntsM).reduce((a,b) => a+b, 0)}, CRLS={Object.values(crlsM).reduce((a,b) => a+b, 0)}, LRLS={Object.values(lrlsM).reduce((a,b) => a+b, 0)}</strong>
             {sourceFilter !== 'all' && ` (${sourceFilter === 'kremlin' ? 'Kremlin' :
               sourceFilter === 'duma' ? 'State Duma' :
               sourceFilter === 'federation' ? 'Federation Council' :
