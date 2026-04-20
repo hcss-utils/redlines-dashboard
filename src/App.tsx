@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import TabNav from './components/TabNav';
 import MethodologyModal from './components/MethodologyModal';
+import RelatedResources from './components/RelatedResources';
 import Overview from './components/Overview';
 import RRLSExplorer from './components/RRLSExplorer';
 import NTSExplorer from './components/NTSExplorer';
@@ -29,6 +30,7 @@ export default function App() {
           <img src={import.meta.env.BASE_URL + 'hcss_logo.svg'} alt="HCSS" className="header-logo" />
         </a>
       </header>
+      <RelatedResources />
       <TabNav active={tab} onChange={setTab} />
       <main>
         {tab === 'overview' && <Overview />}
