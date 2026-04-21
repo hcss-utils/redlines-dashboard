@@ -236,6 +236,22 @@ export default function Statements() {
         />
 
         <div className="confidence-slider">
+          <label>Sort by</label>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as SortKey)}
+            title="Sort statements"
+          >
+            <option value="date-desc">Date (newest)</option>
+            <option value="date-asc">Date (oldest)</option>
+            <option value="conf-desc">Confidence (high → low)</option>
+            <option value="conf-asc">Confidence (low → high)</option>
+            <option value="speaker">Speaker (A → Z)</option>
+            <option value="target">Target (A → Z)</option>
+          </select>
+        </div>
+
+        <div className="confidence-slider">
           <label>Confidence {'\u2265'}</label>
           <input
             type="range" min={7} max={10} step={1}
@@ -244,19 +260,6 @@ export default function Statements() {
           />
           <span className="conf-value">{minConfidence}</span>
         </div>
-
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value as SortKey)}
-          title="Sort statements"
-        >
-          <option value="date-desc">Sort: Date (newest)</option>
-          <option value="date-asc">Sort: Date (oldest)</option>
-          <option value="conf-desc">Sort: Confidence (high → low)</option>
-          <option value="conf-asc">Sort: Confidence (low → high)</option>
-          <option value="speaker">Sort: Speaker (A → Z)</option>
-          <option value="target">Sort: Target (A → Z)</option>
-        </select>
 
         <span className="result-count">{filtered.length.toLocaleString()} results</span>
       </div>
