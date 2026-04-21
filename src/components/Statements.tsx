@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { load } from '../data';
 import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
 import { extractCountries } from '../countries';
@@ -69,6 +69,17 @@ export default function Statements() {
   // near-duplicate strings) to canonical countries / blocs via the extractor
   // in ../countries.ts. This lets us render proper <select> dropdowns — same
   // UI as every other taxonomy filter — instead of a mess of substring inputs.
+  //
+  // Ordering: a few high-salience entities are pinned to the top of each
+  // dropdown (since the dashboard is a Russian-red-lines corpus, those
+  // dominate selection frequency). The rest follow alphabetically.
+  const SPEAKER_PINS = ['Russia'];
+  const TARGET_PINS = ['European Union', 'NATO', 'Netherlands', 'Ukraine', 'United States'];
+  const pinFirst = (all: string[], pins: string[]) => {
+    const present = pins.filter(p => all.includes(p));
+    const rest = all.filter(x => !pins.includes(x)).sort();
+    return [...present, ...rest];
+  };
   const [speakerCountries, targetCountries] = useMemo(() => {
     const spk = new Set<string>();
     const tgt = new Set<string>();
@@ -76,7 +87,8 @@ export default function Statements() {
       for (const c of extractCountries(r.speaker)) spk.add(c);
       for (const c of extractCountries(r.target)) tgt.add(c);
     }
-    return [[...spk].sort(), [...tgt].sort()];
+    return [pinFirst([...spk], SPEAKER_PINS), pinFirst([...tgt], TARGET_PINS)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   // Extract unique values for each dimension filter
@@ -205,7 +217,8 @@ export default function Statements() {
           dimension dropdowns. Same <select> element as the taxonomy filters so
           the row renders identically. Raw speaker/target text is resolved to
           canonical countries via ../countries.ts — see that file for the
-          alias list (Russia, Ukraine, NATO, EU, The West, etc.). */}
+          alias list (Russia, Ukraine, NATO, EU, The West, etc.).
+          High-salience entities pinned to the top, rest alphabetical. */}
       <div className="filter-bar dim-filters">
         <select
           value={speakerFilter}
@@ -213,7 +226,16 @@ export default function Statements() {
           title="Speaker country / bloc (resolved from free-text speaker field)"
         >
           <option value="">Speaker</option>
-          {speakerCountries.map(v => <option key={v} value={v}>{v}</option>)}
+          {speakerCountries.map((v, i) => {
+            const isPin = i < SPEAKER_PINS.filter(p => speakerCountries.includes(p)).length;
+            const isFirstRest = !isPin && i === SPEAKER_PINS.filter(p => speakerCountries.includes(p)).length;
+            return (
+              <Fragment key={v}>
+                {isFirstRest && <option disabled>──────────</option>}
+                <option value={v}>{v}</option>
+              </Fragment>
+            );
+          })}
         </select>
 
         <select
@@ -222,7 +244,17 @@ export default function Statements() {
           title="Target country / bloc (resolved from free-text target field)"
         >
           <option value="">Target</option>
-          {targetCountries.map(v => <option key={v} value={v}>{v}</option>)}
+          {targetCountries.map((v, i) => {
+            const pinCount = TARGET_PINS.filter(p => targetCountries.includes(p)).length;
+            const isPin = i < pinCount;
+            const isFirstRest = !isPin && i === pinCount;
+            return (
+              <Fragment key={v}>
+                {isFirstRest && <option disabled>──────────</option>}
+                <option value={v}>{v}</option>
+              </Fragment>
+            );
+          })}
         </select>
 
         {/* Taxonomy dimension filter dropdowns */}
