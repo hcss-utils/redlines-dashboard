@@ -13,12 +13,17 @@ interface FilterDef {
   label: string;
   // Optional ordinal sort order. If absent, values sort alphabetically.
   ordinal?: string[];
+  // If true, extract "(Level N)" suffixes for numeric ordering — covers
+  // NTS fields like Tone, Consequences, Conditionality, Specificity where
+  // values are "Firm (Level 2)", "Belligerent (Level 4)", etc.
+  ordinalByLevel?: boolean;
 }
 
 // Ordinal ranking for intensity-style fields. Values outside this list fall to
 // the bottom when sorting ascending.
 const INTENSITY_ORDER = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
 
+// Complete RRLS schema — every categorical field gets a filter. 17 total.
 const RRLS_FILTERS: FilterDef[] = [
   { key: 'theme', label: 'Theme' },
   { key: 'audience', label: 'Audience' },
@@ -30,16 +35,33 @@ const RRLS_FILTERS: FilterDef[] = [
   { key: 'threat_intensity', label: 'Threat Intensity', ordinal: INTENSITY_ORDER },
   { key: 'specificity', label: 'Specificity' },
   { key: 'immediacy', label: 'Immediacy' },
+  { key: 'durability', label: 'Durability' },
+  { key: 'reciprocity', label: 'Reciprocity' },
+  { key: 'geopolitical_area_of_concern', label: 'Area of Concern' },
+  { key: 'temporal_context', label: 'Temporal Context' },
+  { key: 'underlying_values_or_interests', label: 'Values / Interests' },
+  { key: 'unilateral_vs_multilateral', label: 'Uni vs Multilateral' },
+  { key: 'rhetorical_device', label: 'Rhetorical Device' },
 ];
 
+// Complete NTS schema — every categorical field gets a filter. 15 total.
+// Level-ranked fields use ordinalByLevel so sort respects the 1→5 scale.
 const NTS_FILTERS: FilterDef[] = [
   { key: 'nts_statement_type', label: 'Statement Type' },
   { key: 'nts_threat_type', label: 'Threat Type' },
   { key: 'capability', label: 'Capability' },
-  { key: 'tone', label: 'Tone' },
-  { key: 'consequences', label: 'Consequences' },
-  { key: 'conditionality', label: 'Conditionality' },
-  { key: 'specificity', label: 'Specificity' },
+  { key: 'tone', label: 'Tone', ordinalByLevel: true },
+  { key: 'consequences', label: 'Consequences', ordinalByLevel: true },
+  { key: 'conditionality', label: 'Conditionality', ordinalByLevel: true },
+  { key: 'specificity', label: 'Specificity', ordinalByLevel: true },
+  { key: 'delivery_system', label: 'Delivery System' },
+  { key: 'purpose', label: 'Purpose' },
+  { key: 'context', label: 'Context' },
+  { key: 'geographical_reach', label: 'Geographical Reach' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'audience', label: 'Audience' },
+  { key: 'rhetorical_device', label: 'Rhetorical Device' },
+  { key: 'arms_control_and_testing', label: 'Arms Control' },
 ];
 
 function highlightText(text: string, query: string): React.ReactNode {
@@ -176,14 +198,20 @@ export default function Statements() {
     if (sortBy.startsWith('dim:')) {
       const dimKey = sortBy.slice(4);
       const def = filterDefs.find(f => f.key === dimKey);
+      const levelRank = (s: string): number => {
+        const m = s.match(/Level (\d+)/);
+        return m ? parseInt(m[1], 10) : Infinity;
+      };
       sorted.sort((a, b) => {
         const va = String((a as unknown as Record<string, unknown>)[dimKey] ?? '');
         const vb = String((b as unknown as Record<string, unknown>)[dimKey] ?? '');
         if (def?.ordinal) {
-          // Ordinal ranking — values not in the list sink to the bottom.
           let ia = def.ordinal.indexOf(va); if (ia === -1) ia = Infinity;
           let ib = def.ordinal.indexOf(vb); if (ib === -1) ib = Infinity;
           return ia - ib;
+        }
+        if (def?.ordinalByLevel) {
+          return levelRank(va) - levelRank(vb);
         }
         if (!va && !vb) return 0;
         if (!va) return 1;
@@ -285,7 +313,7 @@ export default function Statements() {
             <option disabled>──────────</option>
             {filterDefs.map(f => (
               <option key={f.key} value={`dim:${f.key}`}>
-                {f.label} ({f.ordinal ? 'low → high' : 'A → Z'})
+                {f.label} ({f.ordinal || f.ordinalByLevel ? 'low → high' : 'A → Z'})
               </option>
             ))}
           </select>
