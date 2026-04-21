@@ -160,10 +160,11 @@ export default function Statements() {
     };
     void at;
     switch (sortBy) {
-      case 'date-desc': sorted.sort(byDate(1)); break;
-      case 'date-asc':  sorted.sort(byDate(-1)); break;
-      case 'conf-desc': sorted.sort(byConf(-1)); break;
-      case 'conf-asc':  sorted.sort(byConf(1));  break;
+      // byDate(dir): dir=1 means ascending (older→newer); dir=-1 means descending (newer→older)
+      case 'date-desc': sorted.sort(byDate(-1)); break;  // newest first
+      case 'date-asc':  sorted.sort(byDate(1));  break;  // oldest first
+      case 'conf-desc': sorted.sort(byConf(-1)); break;  // high → low
+      case 'conf-asc':  sorted.sort(byConf(1));  break;  // low → high
       case 'speaker':   sorted.sort(byStr('speaker')); break;
       case 'target':    sorted.sort(byStr('target'));  break;
     }
