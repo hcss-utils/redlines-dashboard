@@ -11,7 +11,13 @@ type Mode = 'rrls' | 'nts';
 interface FilterDef {
   key: string;
   label: string;
+  // Optional ordinal sort order. If absent, values sort alphabetically.
+  ordinal?: string[];
 }
+
+// Ordinal ranking for intensity-style fields. Values outside this list fall to
+// the bottom when sorting ascending.
+const INTENSITY_ORDER = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
 
 const RRLS_FILTERS: FilterDef[] = [
   { key: 'theme', label: 'Theme' },
@@ -20,6 +26,8 @@ const RRLS_FILTERS: FilterDef[] = [
   { key: 'level_of_escalation', label: 'Escalation' },
   { key: 'line_type', label: 'Line Type' },
   { key: 'threat_type', label: 'Threat Type' },
+  { key: 'line_intensity', label: 'Line Intensity', ordinal: INTENSITY_ORDER },
+  { key: 'threat_intensity', label: 'Threat Intensity', ordinal: INTENSITY_ORDER },
   { key: 'specificity', label: 'Specificity' },
   { key: 'immediacy', label: 'Immediacy' },
 ];
@@ -45,7 +53,13 @@ function highlightText(text: string, query: string): React.ReactNode {
   );
 }
 
-type SortKey = 'date-desc' | 'date-asc' | 'conf-desc' | 'conf-asc' | 'speaker' | 'target';
+// Hard-coded sort keys (date, confidence, speaker, target). Taxonomy dims
+// use the `dim:<key>` pattern so every FilterDef contributes a sort option.
+type SortKey =
+  | 'date-desc' | 'date-asc'
+  | 'conf-desc' | 'conf-asc'
+  | 'speaker' | 'target'
+  | `dim:${string}`;
 
 export default function Statements() {
   const [mode, setMode] = useState<Mode>('rrls');
@@ -159,14 +173,33 @@ export default function Statements() {
       return sa < sb ? -1 : sa > sb ? 1 : 0;
     };
     void at;
-    switch (sortBy) {
-      // byDate(dir): dir=1 means ascending (older→newer); dir=-1 means descending (newer→older)
-      case 'date-desc': sorted.sort(byDate(-1)); break;  // newest first
-      case 'date-asc':  sorted.sort(byDate(1));  break;  // oldest first
-      case 'conf-desc': sorted.sort(byConf(-1)); break;  // high → low
-      case 'conf-asc':  sorted.sort(byConf(1));  break;  // low → high
-      case 'speaker':   sorted.sort(byStr('speaker')); break;
-      case 'target':    sorted.sort(byStr('target'));  break;
+    if (sortBy.startsWith('dim:')) {
+      const dimKey = sortBy.slice(4);
+      const def = filterDefs.find(f => f.key === dimKey);
+      sorted.sort((a, b) => {
+        const va = String((a as unknown as Record<string, unknown>)[dimKey] ?? '');
+        const vb = String((b as unknown as Record<string, unknown>)[dimKey] ?? '');
+        if (def?.ordinal) {
+          // Ordinal ranking — values not in the list sink to the bottom.
+          let ia = def.ordinal.indexOf(va); if (ia === -1) ia = Infinity;
+          let ib = def.ordinal.indexOf(vb); if (ib === -1) ib = Infinity;
+          return ia - ib;
+        }
+        if (!va && !vb) return 0;
+        if (!va) return 1;
+        if (!vb) return -1;
+        return va < vb ? -1 : va > vb ? 1 : 0;
+      });
+    } else {
+      switch (sortBy) {
+        // byDate(dir): dir=1 ascending (older→newer); dir=-1 descending (newer→older)
+        case 'date-desc': sorted.sort(byDate(-1)); break;  // newest first
+        case 'date-asc':  sorted.sort(byDate(1));  break;  // oldest first
+        case 'conf-desc': sorted.sort(byConf(-1)); break;  // high → low
+        case 'conf-asc':  sorted.sort(byConf(1));  break;  // low → high
+        case 'speaker':   sorted.sort(byStr('speaker')); break;
+        case 'target':    sorted.sort(byStr('target'));  break;
+      }
     }
     return sorted;
   }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, sortBy]);
@@ -249,6 +282,12 @@ export default function Statements() {
             <option value="conf-asc">Confidence (low → high)</option>
             <option value="speaker">Speaker (A → Z)</option>
             <option value="target">Target (A → Z)</option>
+            <option disabled>──────────</option>
+            {filterDefs.map(f => (
+              <option key={f.key} value={`dim:${f.key}`}>
+                {f.label} ({f.ordinal ? 'low → high' : 'A → Z'})
+              </option>
+            ))}
           </select>
         </div>
 
