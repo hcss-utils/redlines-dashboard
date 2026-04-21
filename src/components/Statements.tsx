@@ -49,6 +49,8 @@ export default function Statements() {
   const [nts, setNts] = useState<NTSStatement[]>([]);
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [speakerFilter, setSpeakerFilter] = useState('');
+  const [targetFilter, setTargetFilter] = useState('');
   const [dimFilters, setDimFilters] = useState<Record<string, string>>({});
   const [minConfidence, setMinConfidence] = useState(7);
   const [page, setPage] = useState(0);
@@ -61,6 +63,18 @@ export default function Statements() {
   const data: (RRLSStatement | NTSStatement)[] = mode === 'rrls' ? rrls : nts;
   const sources = useMemo(() => [...new Set(data.map(r => r.source))].sort(), [data]);
   const filterDefs = mode === 'rrls' ? RRLS_FILTERS : NTS_FILTERS;
+
+  // Unique speakers and targets for the datalist autocomplete.
+  // Free strings — hundreds-to-thousands of distinct values per mode —
+  // so we render substring-filter text inputs, not dropdowns.
+  const speakers = useMemo(
+    () => [...new Set(data.map(r => r.speaker).filter(Boolean) as string[])].sort(),
+    [data],
+  );
+  const targets = useMemo(
+    () => [...new Set(data.map(r => r.target).filter(Boolean) as string[])].sort(),
+    [data],
+  );
 
   // Extract unique values for each dimension filter
   const dimOptions = useMemo(() => {
@@ -79,6 +93,16 @@ export default function Statements() {
   const filtered = useMemo(() => {
     let d = data;
     if (sourceFilter) d = d.filter(r => r.source === sourceFilter);
+    // Speaker / Target substring filters. Applied before the free-text
+    // search so the search input still works as a broader fallback.
+    if (speakerFilter) {
+      const q = speakerFilter.toLowerCase();
+      d = d.filter(r => (r.speaker || '').toLowerCase().includes(q));
+    }
+    if (targetFilter) {
+      const q = targetFilter.toLowerCase();
+      d = d.filter(r => (r.target || '').toLowerCase().includes(q));
+    }
     if (search) {
       const s = search.toLowerCase();
       d = d.filter(r =>
@@ -98,20 +122,22 @@ export default function Statements() {
       d = d.filter(r => (r.overall_confidence ?? 0) >= minConfidence);
     }
     return d;
-  }, [data, sourceFilter, search, dimFilters, minConfidence]);
+  }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence]);
 
   const PAGE_SIZE = 20;
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   // Reset page when any filter changes
-  useEffect(() => setPage(0), [mode, sourceFilter, search, dimFilters, minConfidence]);
+  useEffect(() => setPage(0), [mode, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence]);
 
   // Reset dimension filters when mode changes
   const handleModeChange = useCallback((newMode: Mode) => {
     setMode(newMode);
     setDimFilters({});
     setSourceFilter('');
+    setSpeakerFilter('');
+    setTargetFilter('');
     setSearch('');
     setMinConfidence(7);
   }, []);
@@ -121,11 +147,14 @@ export default function Statements() {
   }, []);
 
   const activeFilterCount = Object.values(dimFilters).filter(Boolean).length +
-    (sourceFilter ? 1 : 0) + (search ? 1 : 0) + (minConfidence > 7 ? 1 : 0);
+    (sourceFilter ? 1 : 0) + (speakerFilter ? 1 : 0) + (targetFilter ? 1 : 0) +
+    (search ? 1 : 0) + (minConfidence > 7 ? 1 : 0);
 
   const clearAll = useCallback(() => {
     setDimFilters({});
     setSourceFilter('');
+    setSpeakerFilter('');
+    setTargetFilter('');
     setSearch('');
     setMinConfidence(7);
   }, []);
@@ -172,8 +201,37 @@ export default function Statements() {
         <span className="result-count">{filtered.length.toLocaleString()} results</span>
       </div>
 
-      {/* Taxonomy dimension filter dropdowns */}
+      {/* Speaker + Target substring filters (first — data has 900+ / 1700+
+          distinct values with many near-duplicates, so dropdowns are
+          unusable; substring + datalist is the right trade-off). */}
       <div className="filter-bar dim-filters">
+        <input
+          type="text"
+          placeholder={`Speaker (${speakers.length} unique) — substring`}
+          value={speakerFilter}
+          onChange={e => setSpeakerFilter(e.target.value)}
+          list="speaker-list"
+          style={{ minWidth: 260 }}
+          title="Filter by speaker — matches any substring of the speaker field"
+        />
+        <datalist id="speaker-list">
+          {speakers.map(s => <option key={s} value={s} />)}
+        </datalist>
+
+        <input
+          type="text"
+          placeholder={`Target (${targets.length} unique) — substring`}
+          value={targetFilter}
+          onChange={e => setTargetFilter(e.target.value)}
+          list="target-list"
+          style={{ minWidth: 260 }}
+          title="Filter by target — matches any substring of the target field"
+        />
+        <datalist id="target-list">
+          {targets.map(t => <option key={t} value={t} />)}
+        </datalist>
+
+        {/* Taxonomy dimension filter dropdowns */}
         {filterDefs.map(f => (
           <select
             key={f.key}
