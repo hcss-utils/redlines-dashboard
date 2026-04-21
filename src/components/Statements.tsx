@@ -45,6 +45,8 @@ function highlightText(text: string, query: string): React.ReactNode {
   );
 }
 
+type SortKey = 'date-desc' | 'date-asc' | 'conf-desc' | 'conf-asc' | 'speaker' | 'target';
+
 export default function Statements() {
   const [mode, setMode] = useState<Mode>('rrls');
   const [rrls, setRrls] = useState<RRLSStatement[]>([]);
@@ -55,6 +57,7 @@ export default function Statements() {
   const [targetFilter, setTargetFilter] = useState('');
   const [dimFilters, setDimFilters] = useState<Record<string, string>>({});
   const [minConfidence, setMinConfidence] = useState(7);
+  const [sortBy, setSortBy] = useState<SortKey>('date-desc');
   const [page, setPage] = useState(0);
 
   useEffect(() => {
@@ -134,15 +137,45 @@ export default function Statements() {
     if (minConfidence > 7) {
       d = d.filter(r => (r.overall_confidence ?? 0) >= minConfidence);
     }
-    return d;
-  }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence]);
+    // Sort: statements missing the sort key sink to the bottom.
+    const sorted = [...d];
+    const at = <T,>(s: (typeof d)[0], key: keyof T): string | number | null => (s as unknown as T)[key] as string | number | null;
+    const byDate = (dir: 1 | -1) => (a: (typeof d)[0], b: (typeof d)[0]) => {
+      const da = a.date || '', db = b.date || '';
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da < db ? -dir : da > db ? dir : 0;
+    };
+    const byConf = (dir: 1 | -1) => (a: (typeof d)[0], b: (typeof d)[0]) => {
+      const ca = a.overall_confidence ?? -1, cb = b.overall_confidence ?? -1;
+      return (ca - cb) * dir;
+    };
+    const byStr = (key: 'speaker' | 'target') => (a: (typeof d)[0], b: (typeof d)[0]) => {
+      const sa = (a[key] || '').toLowerCase(), sb = (b[key] || '').toLowerCase();
+      if (!sa && !sb) return 0;
+      if (!sa) return 1;
+      if (!sb) return -1;
+      return sa < sb ? -1 : sa > sb ? 1 : 0;
+    };
+    void at;
+    switch (sortBy) {
+      case 'date-desc': sorted.sort(byDate(1)); break;
+      case 'date-asc':  sorted.sort(byDate(-1)); break;
+      case 'conf-desc': sorted.sort(byConf(-1)); break;
+      case 'conf-asc':  sorted.sort(byConf(1));  break;
+      case 'speaker':   sorted.sort(byStr('speaker')); break;
+      case 'target':    sorted.sort(byStr('target'));  break;
+    }
+    return sorted;
+  }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, sortBy]);
 
   const PAGE_SIZE = 20;
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
-  // Reset page when any filter changes
-  useEffect(() => setPage(0), [mode, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence]);
+  // Reset page when any filter or sort changes
+  useEffect(() => setPage(0), [mode, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, sortBy]);
 
   // Reset dimension filters when mode changes
   const handleModeChange = useCallback((newMode: Mode) => {
@@ -153,6 +186,7 @@ export default function Statements() {
     setTargetFilter('');
     setSearch('');
     setMinConfidence(7);
+    setSortBy('date-desc');
   }, []);
 
   const setDimFilter = useCallback((key: string, value: string) => {
@@ -210,6 +244,19 @@ export default function Statements() {
           />
           <span className="conf-value">{minConfidence}</span>
         </div>
+
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as SortKey)}
+          title="Sort statements"
+        >
+          <option value="date-desc">Sort: Date (newest)</option>
+          <option value="date-asc">Sort: Date (oldest)</option>
+          <option value="conf-desc">Sort: Confidence (high → low)</option>
+          <option value="conf-asc">Sort: Confidence (low → high)</option>
+          <option value="speaker">Sort: Speaker (A → Z)</option>
+          <option value="target">Sort: Target (A → Z)</option>
+        </select>
 
         <span className="result-count">{filtered.length.toLocaleString()} results</span>
       </div>
