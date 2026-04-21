@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { load } from '../data';
 import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
+import { extractCountries } from '../countries';
 import ChartInfo from './ChartInfo';
 import type { RRLSStatement, NTSStatement } from '../types';
 
@@ -64,17 +65,19 @@ export default function Statements() {
   const sources = useMemo(() => [...new Set(data.map(r => r.source))].sort(), [data]);
   const filterDefs = mode === 'rrls' ? RRLS_FILTERS : NTS_FILTERS;
 
-  // Unique speakers and targets for the datalist autocomplete.
-  // Free strings — hundreds-to-thousands of distinct values per mode —
-  // so we render substring-filter text inputs, not dropdowns.
-  const speakers = useMemo(
-    () => [...new Set(data.map(r => r.speaker).filter(Boolean) as string[])].sort(),
-    [data],
-  );
-  const targets = useMemo(
-    () => [...new Set(data.map(r => r.target).filter(Boolean) as string[])].sort(),
-    [data],
-  );
+  // Resolve the free-text speaker and target fields (900+ / 1700+ distinct
+  // near-duplicate strings) to canonical countries / blocs via the extractor
+  // in ../countries.ts. This lets us render proper <select> dropdowns — same
+  // UI as every other taxonomy filter — instead of a mess of substring inputs.
+  const [speakerCountries, targetCountries] = useMemo(() => {
+    const spk = new Set<string>();
+    const tgt = new Set<string>();
+    for (const r of data) {
+      for (const c of extractCountries(r.speaker)) spk.add(c);
+      for (const c of extractCountries(r.target)) tgt.add(c);
+    }
+    return [[...spk].sort(), [...tgt].sort()];
+  }, [data]);
 
   // Extract unique values for each dimension filter
   const dimOptions = useMemo(() => {
@@ -93,15 +96,12 @@ export default function Statements() {
   const filtered = useMemo(() => {
     let d = data;
     if (sourceFilter) d = d.filter(r => r.source === sourceFilter);
-    // Speaker / Target substring filters. Applied before the free-text
-    // search so the search input still works as a broader fallback.
+    // Country / bloc filters on the resolved speaker and target.
     if (speakerFilter) {
-      const q = speakerFilter.toLowerCase();
-      d = d.filter(r => (r.speaker || '').toLowerCase().includes(q));
+      d = d.filter(r => extractCountries(r.speaker).includes(speakerFilter));
     }
     if (targetFilter) {
-      const q = targetFilter.toLowerCase();
-      d = d.filter(r => (r.target || '').toLowerCase().includes(q));
+      d = d.filter(r => extractCountries(r.target).includes(targetFilter));
     }
     if (search) {
       const s = search.toLowerCase();
@@ -201,35 +201,29 @@ export default function Statements() {
         <span className="result-count">{filtered.length.toLocaleString()} results</span>
       </div>
 
-      {/* Speaker + Target substring filters (first — data has 900+ / 1700+
-          distinct values with many near-duplicates, so dropdowns are
-          unusable; substring + datalist is the right trade-off). */}
+      {/* Country / bloc filters for Speaker + Target (first), then the taxonomy
+          dimension dropdowns. Same <select> element as the taxonomy filters so
+          the row renders identically. Raw speaker/target text is resolved to
+          canonical countries via ../countries.ts — see that file for the
+          alias list (Russia, Ukraine, NATO, EU, The West, etc.). */}
       <div className="filter-bar dim-filters">
-        <input
-          type="text"
-          placeholder={`Speaker (${speakers.length} unique) — substring`}
+        <select
           value={speakerFilter}
           onChange={e => setSpeakerFilter(e.target.value)}
-          list="speaker-list"
-          style={{ minWidth: 260 }}
-          title="Filter by speaker — matches any substring of the speaker field"
-        />
-        <datalist id="speaker-list">
-          {speakers.map(s => <option key={s} value={s} />)}
-        </datalist>
+          title="Speaker country / bloc (resolved from free-text speaker field)"
+        >
+          <option value="">Speaker</option>
+          {speakerCountries.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
 
-        <input
-          type="text"
-          placeholder={`Target (${targets.length} unique) — substring`}
+        <select
           value={targetFilter}
           onChange={e => setTargetFilter(e.target.value)}
-          list="target-list"
-          style={{ minWidth: 260 }}
-          title="Filter by target — matches any substring of the target field"
-        />
-        <datalist id="target-list">
-          {targets.map(t => <option key={t} value={t} />)}
-        </datalist>
+          title="Target country / bloc (resolved from free-text target field)"
+        >
+          <option value="">Target</option>
+          {targetCountries.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
 
         {/* Taxonomy dimension filter dropdowns */}
         {filterDefs.map(f => (
