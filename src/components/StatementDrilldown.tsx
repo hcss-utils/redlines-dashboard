@@ -1,4 +1,5 @@
 import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
+import { confidencePillStyle } from '../confidence';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 interface DrilldownProps {
@@ -34,7 +35,11 @@ export default function StatementDrilldown({ mode, title, statements, onClose }:
                 <span className="stmt-date">{stmt.date || 'No date'}</span>
                 <span className="stmt-source">{stmt.source}</span>
                 <span className="stmt-db">{stmt.db}</span>
-                {stmt.overall_confidence && <span className="stmt-db">Conf: {stmt.overall_confidence}/10</span>}
+                {stmt.overall_confidence && (
+                  <span className="stmt-db" style={confidencePillStyle(stmt.overall_confidence)}>
+                    Conf: {stmt.overall_confidence}/10
+                  </span>
+                )}
                 {stmt.speaker && <span className="stmt-speaker">Speaker: {stmt.speaker}</span>}
                 {stmt.target && <span className="stmt-target">Target: {stmt.target}</span>}
               </div>
