@@ -44,8 +44,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages (hcss-utils — authoritative)
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+
+      # Mirror the same dist/ to sdspieg/redlines-dashboard's gh-pages so
+      # https://sdspieg.github.io/redlines-dashboard/ (the historically-advertised URL)
+      # keeps serving. Removing this step cleanly takes the legacy URL offline.
+      - name: Deploy to sdspieg/redlines-dashboard gh-pages (legacy URL mirror)
+        if: ${{ env.SDSPIEG_PAGES_PAT != '' }}
+        env:
+          SDSPIEG_PAGES_PAT: ${{ secrets.SDSPIEG_PAGES_PAT }}
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.SDSPIEG_PAGES_PAT }}
+          external_repository: sdspieg/redlines-dashboard
+          publish_branch: gh-pages
           publish_dir: ./dist
