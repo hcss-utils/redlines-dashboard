@@ -1,6 +1,6 @@
-import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
 import { confidencePillStyle } from '../confidence';
-import { RRLS_FILTERS, NTS_FILTERS, COLOR_KEY_FOR } from '../filterDefs';
+import { RRLS_FILTERS, NTS_FILTERS } from '../filterDefs';
+import { fieldColor } from '../filterColors';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 interface DrilldownProps {
@@ -12,7 +12,6 @@ interface DrilldownProps {
 
 export default function StatementDrilldown({ mode, title, statements, onClose }: DrilldownProps) {
   const shown = statements.slice(0, 50);
-  const COLORS = mode === 'rrls' ? RRLS_COLORS : NTS_COLORS;
   const filterDefs = mode === 'rrls' ? RRLS_FILTERS : NTS_FILTERS;
 
   return (
@@ -47,9 +46,9 @@ export default function StatementDrilldown({ mode, title, statements, onClose }:
                     {filterDefs.map(f => {
                       const val = s[f.key] as string | undefined;
                       if (!val) return null;
-                      const c = getDimValueColor(COLORS, COLOR_KEY_FOR(f.key), val, 0);
+                      const c = fieldColor(f.key);
                       return (
-                        <span key={f.key} className="tag" style={{ background: `${c}33`, color: c }}>
+                        <span key={f.key} className="tag" style={{ background: `${c}2a`, color: c, borderLeft: `3px solid ${c}` }}>
                           {f.label}: {val}
                         </span>
                       );

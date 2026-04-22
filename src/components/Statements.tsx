@@ -1,14 +1,13 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { load } from '../data';
-import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
 import { extractCountries } from '../countries';
 import { confidencePillStyle } from '../confidence';
+import { RRLS_FILTERS, NTS_FILTERS } from '../filterDefs';
+import { fieldColor } from '../filterColors';
 import ChartInfo from './ChartInfo';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 type Mode = 'rrls' | 'nts';
-
-import { RRLS_FILTERS, NTS_FILTERS, COLOR_KEY_FOR } from '../filterDefs';
 
 function highlightText(text: string, query: string): React.ReactNode {
   if (!query) return text;
@@ -359,15 +358,14 @@ export default function Statements() {
             <div className="stmt-text">{stmt.context_text_span ? highlightText(stmt.context_text_span, search) : '(no text)'}</div>
             {(() => {
               const s = stmt as unknown as Record<string, unknown>;
-              const COLORS = mode === 'rrls' ? RRLS_COLORS : NTS_COLORS;
               return (
                 <div className="stmt-tags">
                   {filterDefs.map(f => {
                     const val = s[f.key] as string | undefined;
                     if (!val) return null;
-                    const c = getDimValueColor(COLORS, COLOR_KEY_FOR(f.key), val, 0);
+                    const c = fieldColor(f.key);
                     return (
-                      <span key={f.key} className="tag" style={{ background: `${c}33`, color: c }}>
+                      <span key={f.key} className="tag" style={{ background: `${c}2a`, color: c, borderLeft: `3px solid ${c}` }}>
                         {f.label}: {val}
                       </span>
                     );
