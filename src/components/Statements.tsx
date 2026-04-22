@@ -8,61 +8,7 @@ import type { RRLSStatement, NTSStatement } from '../types';
 
 type Mode = 'rrls' | 'nts';
 
-interface FilterDef {
-  key: string;
-  label: string;
-  // Optional ordinal sort order. If absent, values sort alphabetically.
-  ordinal?: string[];
-  // If true, extract "(Level N)" suffixes for numeric ordering — covers
-  // NTS fields like Tone, Consequences, Conditionality, Specificity where
-  // values are "Firm (Level 2)", "Belligerent (Level 4)", etc.
-  ordinalByLevel?: boolean;
-}
-
-// Ordinal ranking for intensity-style fields. Values outside this list fall to
-// the bottom when sorting ascending.
-const INTENSITY_ORDER = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
-
-// Complete RRLS schema — every categorical field gets a filter. 17 total.
-const RRLS_FILTERS: FilterDef[] = [
-  { key: 'theme', label: 'Theme' },
-  { key: 'audience', label: 'Audience' },
-  { key: 'nature_of_threat', label: 'Nature of Threat' },
-  { key: 'level_of_escalation', label: 'Escalation' },
-  { key: 'line_type', label: 'Line Type' },
-  { key: 'threat_type', label: 'Threat Type' },
-  { key: 'line_intensity', label: 'Line Intensity', ordinal: INTENSITY_ORDER },
-  { key: 'threat_intensity', label: 'Threat Intensity', ordinal: INTENSITY_ORDER },
-  { key: 'specificity', label: 'Specificity' },
-  { key: 'immediacy', label: 'Immediacy' },
-  { key: 'durability', label: 'Durability' },
-  { key: 'reciprocity', label: 'Reciprocity' },
-  { key: 'geopolitical_area_of_concern', label: 'Area of Concern' },
-  { key: 'temporal_context', label: 'Temporal Context' },
-  { key: 'underlying_values_or_interests', label: 'Values / Interests' },
-  { key: 'unilateral_vs_multilateral', label: 'Uni vs Multilateral' },
-  { key: 'rhetorical_device', label: 'Rhetorical Device' },
-];
-
-// Complete NTS schema — every categorical field gets a filter. 15 total.
-// Level-ranked fields use ordinalByLevel so sort respects the 1→5 scale.
-const NTS_FILTERS: FilterDef[] = [
-  { key: 'nts_statement_type', label: 'Statement Type' },
-  { key: 'nts_threat_type', label: 'Threat Type' },
-  { key: 'capability', label: 'Capability' },
-  { key: 'tone', label: 'Tone', ordinalByLevel: true },
-  { key: 'consequences', label: 'Consequences', ordinalByLevel: true },
-  { key: 'conditionality', label: 'Conditionality', ordinalByLevel: true },
-  { key: 'specificity', label: 'Specificity', ordinalByLevel: true },
-  { key: 'delivery_system', label: 'Delivery System' },
-  { key: 'purpose', label: 'Purpose' },
-  { key: 'context', label: 'Context' },
-  { key: 'geographical_reach', label: 'Geographical Reach' },
-  { key: 'timeline', label: 'Timeline' },
-  { key: 'audience', label: 'Audience' },
-  { key: 'rhetorical_device', label: 'Rhetorical Device' },
-  { key: 'arms_control_and_testing', label: 'Arms Control' },
-];
+import { RRLS_FILTERS, NTS_FILTERS, COLOR_KEY_FOR } from '../filterDefs';
 
 function highlightText(text: string, query: string): React.ReactNode {
   if (!query) return text;
@@ -411,42 +357,21 @@ export default function Statements() {
               {stmt.target && <span className="stmt-target">Target: {highlightText(stmt.target, search)}</span>}
             </div>
             <div className="stmt-text">{stmt.context_text_span ? highlightText(stmt.context_text_span, search) : '(no text)'}</div>
-            {mode === 'rrls' && (() => {
-              const s = stmt as RRLSStatement;
-              const tag = (dim: string, val: string | undefined, label?: string) => {
-                if (!val) return null;
-                const c = getDimValueColor(RRLS_COLORS, dim, val, 0);
-                return <span key={dim} className="tag" style={{ background: `${c}33`, color: c }}>{label ? `${label}: ${val}` : val}</span>;
-              };
+            {(() => {
+              const s = stmt as unknown as Record<string, unknown>;
+              const COLORS = mode === 'rrls' ? RRLS_COLORS : NTS_COLORS;
               return (
                 <div className="stmt-tags">
-                  {tag('theme', s.theme)}
-                  {tag('audience', s.audience)}
-                  {tag('nature_of_threat', s.nature_of_threat)}
-                  {tag('level_of_escalation', s.level_of_escalation)}
-                  {tag('line', s.line_type, 'Line')}
-                  {tag('threat', s.threat_type, 'Threat')}
-                  {tag('specificity', s.specificity)}
-                  {tag('immediacy', s.immediacy)}
-                </div>
-              );
-            })()}
-            {mode === 'nts' && (() => {
-              const s = stmt as NTSStatement;
-              const tag = (dim: string, val: string | undefined, label?: string) => {
-                if (!val) return null;
-                const c = getDimValueColor(NTS_COLORS, dim, val, 0);
-                return <span key={dim} className="tag" style={{ background: `${c}33`, color: c }}>{label ? `${label}: ${val}` : val}</span>;
-              };
-              return (
-                <div className="stmt-tags">
-                  {tag('nts_statement_type', s.nts_statement_type)}
-                  {tag('nts_threat_type', s.nts_threat_type)}
-                  {tag('capability', s.capability)}
-                  {tag('tone', s.tone, 'Tone')}
-                  {tag('consequences', s.consequences, 'Consequences')}
-                  {tag('specificity', s.specificity)}
-                  {tag('conditionality', s.conditionality)}
+                  {filterDefs.map(f => {
+                    const val = s[f.key] as string | undefined;
+                    if (!val) return null;
+                    const c = getDimValueColor(COLORS, COLOR_KEY_FOR(f.key), val, 0);
+                    return (
+                      <span key={f.key} className="tag" style={{ background: `${c}33`, color: c }}>
+                        {f.label}: {val}
+                      </span>
+                    );
+                  })}
                 </div>
               );
             })()}

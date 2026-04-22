@@ -1,5 +1,6 @@
 import { RRLS_COLORS, NTS_COLORS, getDimValueColor } from '../colors';
 import { confidencePillStyle } from '../confidence';
+import { RRLS_FILTERS, NTS_FILTERS, COLOR_KEY_FOR } from '../filterDefs';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 interface DrilldownProps {
@@ -12,12 +13,7 @@ interface DrilldownProps {
 export default function StatementDrilldown({ mode, title, statements, onClose }: DrilldownProps) {
   const shown = statements.slice(0, 50);
   const COLORS = mode === 'rrls' ? RRLS_COLORS : NTS_COLORS;
-
-  const tag = (dim: string, val: string | undefined, label?: string) => {
-    if (!val) return null;
-    const c = getDimValueColor(COLORS, dim, val, 0);
-    return <span key={dim} className="tag" style={{ background: `${c}33`, color: c }}>{label ? `${label}: ${val}` : val}</span>;
-  };
+  const filterDefs = mode === 'rrls' ? RRLS_FILTERS : NTS_FILTERS;
 
   return (
     <div className="drilldown-overlay" onClick={onClose}>
@@ -44,32 +40,20 @@ export default function StatementDrilldown({ mode, title, statements, onClose }:
                 {stmt.target && <span className="stmt-target">Target: {stmt.target}</span>}
               </div>
               <div className="stmt-text">{stmt.context_text_span || '(no text)'}</div>
-              {mode === 'rrls' && (() => {
-                const s = stmt as RRLSStatement;
+              {(() => {
+                const s = stmt as unknown as Record<string, unknown>;
                 return (
                   <div className="stmt-tags">
-                    {tag('theme', s.theme)}
-                    {tag('audience', s.audience)}
-                    {tag('nature_of_threat', s.nature_of_threat)}
-                    {tag('level_of_escalation', s.level_of_escalation)}
-                    {tag('line', s.line_type, 'Line')}
-                    {tag('threat', s.threat_type, 'Threat')}
-                    {tag('specificity', s.specificity)}
-                    {tag('immediacy', s.immediacy)}
-                  </div>
-                );
-              })()}
-              {mode === 'nts' && (() => {
-                const s = stmt as NTSStatement;
-                return (
-                  <div className="stmt-tags">
-                    {tag('nts_statement_type', s.nts_statement_type)}
-                    {tag('nts_threat_type', s.nts_threat_type)}
-                    {tag('capability', s.capability)}
-                    {tag('tone', s.tone, 'Tone')}
-                    {tag('consequences', s.consequences, 'Consequences')}
-                    {tag('specificity', s.specificity)}
-                    {tag('conditionality', s.conditionality)}
+                    {filterDefs.map(f => {
+                      const val = s[f.key] as string | undefined;
+                      if (!val) return null;
+                      const c = getDimValueColor(COLORS, COLOR_KEY_FOR(f.key), val, 0);
+                      return (
+                        <span key={f.key} className="tag" style={{ background: `${c}33`, color: c }}>
+                          {f.label}: {val}
+                        </span>
+                      );
+                    })}
                   </div>
                 );
               })()}
