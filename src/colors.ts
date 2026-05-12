@@ -323,3 +323,17 @@ export function getDimValueColor(
 ): string {
   return colorMap[dim]?.[value] ?? TAB20[fallbackIndex % TAB20.length];
 }
+
+// ── Helper: ordinal-aware sort for dimension values ─────────────────
+
+/** Sort values ordinally (by score, low→high) when the dimension has
+ *  defined ordinal scores; fall back to alphabetical for categorical dims. */
+export function ordinalSort(
+  values: string[],
+  dim: string,
+  scores: Record<string, Record<string, number>>,
+): string[] {
+  const s = scores[dim];
+  if (!s) return [...values].sort();
+  return [...values].sort((a, b) => (s[a] ?? Infinity) - (s[b] ?? Infinity));
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Plot from './Plot';
 import { load } from '../data';
-import { RRLS_COLORS, RRLS_ORDINAL_SCORES, RRLS_ORDINAL_DIMS, RRLS_DIM_COLORS, getDimValueColor } from '../colors';
+import { RRLS_COLORS, RRLS_ORDINAL_SCORES, RRLS_ORDINAL_DIMS, RRLS_DIM_COLORS, getDimValueColor, ordinalSort } from '../colors';
 import ChartInfo from './ChartInfo';
 import StatementDrilldown from './StatementDrilldown';
 import type { TaxonomyRow, RRLSStatement } from '../types';
@@ -82,7 +82,10 @@ export default function RRLSExplorer() {
   const allDims = Object.keys(DIM_LABELS).sort((a, b) =>
     (DIM_LABELS[a] || a).localeCompare(DIM_LABELS[b] || b)
   );
-  const rows = mergedTotals[selectedDim] || [];
+  const rawRows = mergedTotals[selectedDim] || [];
+  const rows = RRLS_ORDINAL_SCORES[selectedDim]
+    ? [...rawRows].sort((a, b) => (RRLS_ORDINAL_SCORES[selectedDim][a.value] ?? Infinity) - (RRLS_ORDINAL_SCORES[selectedDim][b.value] ?? Infinity))
+    : rawRows;
   const totalCount = rows.reduce((s, r) => s + r.count, 0);
 
   // Compute per-source taxonomy for dims not in pre-computed file
@@ -160,8 +163,8 @@ export default function RRLSExplorer() {
   }, [filteredStatements, crossDim1, crossDim2]);
 
   // Heatmap data from cross-tab
-  const dim1Vals = [...new Set(crossRows.map(r => r.dim1))].sort();
-  const dim2Vals = [...new Set(crossRows.map(r => r.dim2))].sort();
+  const dim1Vals = ordinalSort([...new Set(crossRows.map(r => r.dim1))], crossDim1, RRLS_ORDINAL_SCORES);
+  const dim2Vals = ordinalSort([...new Set(crossRows.map(r => r.dim2))], crossDim2, RRLS_ORDINAL_SCORES);
   const zMap: Record<string, Record<string, number>> = {};
   for (const r of crossRows) {
     if (!zMap[r.dim1]) zMap[r.dim1] = {};

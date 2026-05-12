@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Plot from './Plot';
 import { load } from '../data';
-import { NTS_COLORS, NTS_ORDINAL_SCORES, NTS_ORDINAL_DIMS, NTS_DIM_COLORS, getDimValueColor } from '../colors';
+import { NTS_COLORS, NTS_ORDINAL_SCORES, NTS_ORDINAL_DIMS, NTS_DIM_COLORS, getDimValueColor, ordinalSort } from '../colors';
 import ChartInfo from './ChartInfo';
 import StatementDrilldown from './StatementDrilldown';
 import type { TaxonomyRow, NTSSeverityRow, NTSStatement } from '../types';
@@ -45,7 +45,10 @@ export default function NTSExplorer() {
   const allDims = Object.keys(DIM_LABELS).sort((a, b) =>
     (DIM_LABELS[a] || a).localeCompare(DIM_LABELS[b] || b)
   );
-  const rows = taxonomy[selectedDim] || [];
+  const rawRows = taxonomy[selectedDim] || [];
+  const rows = NTS_ORDINAL_SCORES[selectedDim]
+    ? [...rawRows].sort((a, b) => (NTS_ORDINAL_SCORES[selectedDim][a.value] ?? Infinity) - (NTS_ORDINAL_SCORES[selectedDim][b.value] ?? Infinity))
+    : rawRows;
   const totalCount = rows.reduce((s, r) => s + r.count, 0);
 
   // Compute average severity per month per dimension
@@ -101,8 +104,8 @@ export default function NTSExplorer() {
     return result;
   }, [filteredStatements, crossDim1, crossDim2]);
 
-  const ct1Vals = [...new Set(crossRows.map(r => r.dim1))].sort();
-  const ct2Vals = [...new Set(crossRows.map(r => r.dim2))].sort();
+  const ct1Vals = ordinalSort([...new Set(crossRows.map(r => r.dim1))], crossDim1, NTS_ORDINAL_SCORES);
+  const ct2Vals = ordinalSort([...new Set(crossRows.map(r => r.dim2))], crossDim2, NTS_ORDINAL_SCORES);
   const ctMap: Record<string, Record<string, number>> = {};
   for (const r of crossRows) {
     if (!ctMap[r.dim1]) ctMap[r.dim1] = {};

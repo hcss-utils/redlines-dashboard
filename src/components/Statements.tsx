@@ -85,7 +85,23 @@ export default function Statements() {
         const v = (r as unknown as Record<string, unknown>)[f.key] as string;
         if (v) vals.add(v);
       }
-      opts[f.key] = [...vals].sort();
+      const arr = [...vals];
+      if (f.ordinal) {
+        arr.sort((a, b) => {
+          const ia = f.ordinal!.indexOf(a);
+          const ib = f.ordinal!.indexOf(b);
+          return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
+        });
+      } else if (f.ordinalByLevel) {
+        arr.sort((a, b) => {
+          const la = a.match(/Level (\d+)/)?.[1];
+          const lb = b.match(/Level (\d+)/)?.[1];
+          return (la ? +la : Infinity) - (lb ? +lb : Infinity);
+        });
+      } else {
+        arr.sort();
+      }
+      opts[f.key] = arr;
     }
     return opts;
   }, [data, filterDefs]);
