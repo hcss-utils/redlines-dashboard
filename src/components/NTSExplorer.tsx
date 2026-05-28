@@ -60,13 +60,35 @@ export default function NTSExplorer() {
     return d;
   }, [statements, minConfidence, sourceFilter, startDate, endDate]);
 
-  const dims = Object.keys(taxonomy).sort((a, b) =>
+  const isFiltered = minConfidence > 7 || sourceFilter !== 'all' || !!startDate || !!endDate;
+
+  // Recompute taxonomy from filteredStatements when any filter is active
+  const effectiveTaxonomy = useMemo(() => {
+    if (!isFiltered) return taxonomy;
+    const result: Record<string, TaxonomyRow[]> = {};
+    const NTS_FIELDS = Object.keys(DIM_LABELS);
+    for (const field of NTS_FIELDS) {
+      const counts: Record<string, number> = {};
+      for (const s of filteredStatements) {
+        const val = String((s as unknown as Record<string, unknown>)[field] ?? '');
+        if (val) counts[val] = (counts[val] || 0) + 1;
+      }
+      if (Object.keys(counts).length > 0) {
+        result[field] = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([value, count]) => ({ value, count }));
+      }
+    }
+    return result;
+  }, [filteredStatements, taxonomy, isFiltered]);
+
+  const dims = Object.keys(effectiveTaxonomy).sort((a, b) =>
     (DIM_LABELS[a] || a).localeCompare(DIM_LABELS[b] || b)
   );
   const allDims = Object.keys(DIM_LABELS).sort((a, b) =>
     (DIM_LABELS[a] || a).localeCompare(DIM_LABELS[b] || b)
   );
-  const rawRows = taxonomy[selectedDim] || [];
+  const rawRows = effectiveTaxonomy[selectedDim] || [];
   const rows = NTS_ORDINAL_SCORES[selectedDim]
     ? [...rawRows].sort((a, b) => (NTS_ORDINAL_SCORES[selectedDim][a.value] ?? Infinity) - (NTS_ORDINAL_SCORES[selectedDim][b.value] ?? Infinity))
     : rawRows;
@@ -77,12 +99,25 @@ export default function NTSExplorer() {
     const scores = NTS_ORDINAL_SCORES[dim];
     if (!scores) return {};
     const monthAgg: Record<string, { total: number; count: number }> = {};
-    for (const r of severity) {
-      const val = (r as unknown as Record<string, unknown>)[dim] as string;
-      if (!val || scores[val] === undefined) continue;
-      if (!monthAgg[r.month]) monthAgg[r.month] = { total: 0, count: 0 };
-      monthAgg[r.month].total += scores[val] * r.count;
-      monthAgg[r.month].count += r.count;
+    if (isFiltered) {
+      // Recompute from filtered statements
+      for (const s of filteredStatements) {
+        if (!s.date) continue;
+        const month = s.date.slice(0, 7);
+        const val = (s as unknown as Record<string, unknown>)[dim] as string;
+        if (!val || scores[val] === undefined) continue;
+        if (!monthAgg[month]) monthAgg[month] = { total: 0, count: 0 };
+        monthAgg[month].total += scores[val];
+        monthAgg[month].count += 1;
+      }
+    } else {
+      for (const r of severity) {
+        const val = (r as unknown as Record<string, unknown>)[dim] as string;
+        if (!val || scores[val] === undefined) continue;
+        if (!monthAgg[r.month]) monthAgg[r.month] = { total: 0, count: 0 };
+        monthAgg[r.month].total += scores[val] * r.count;
+        monthAgg[r.month].count += r.count;
+      }
     }
     const result: Record<string, number> = {};
     for (const [m, agg] of Object.entries(monthAgg)) {
@@ -91,16 +126,36 @@ export default function NTSExplorer() {
     return result;
   };
 
-  const allMonths = [...new Set(severity.map(r => r.month))].sort();
+  const allMonths = useMemo(() => {
+    if (isFiltered) {
+      const ms = new Set<string>();
+      for (const s of filteredStatements) {
+        if (s.date) ms.add(s.date.slice(0, 7));
+      }
+      return [...ms].sort();
+    }
+    return [...new Set(severity.map(r => r.month))].sort();
+  }, [severity, filteredStatements, isFiltered]);
 
   // Severity breakdown by month x dim
   const severityByMonth = (dim: string) => {
     const agg: Record<string, Record<string, number>> = {};
-    for (const r of severity) {
-      const val = (r as unknown as Record<string, unknown>)[dim] as string;
-      if (!val) continue;
-      if (!agg[r.month]) agg[r.month] = {};
-      agg[r.month][val] = (agg[r.month][val] || 0) + r.count;
+    if (isFiltered) {
+      for (const s of filteredStatements) {
+        if (!s.date) continue;
+        const month = s.date.slice(0, 7);
+        const val = (s as unknown as Record<string, unknown>)[dim] as string;
+        if (!val) continue;
+        if (!agg[month]) agg[month] = {};
+        agg[month][val] = (agg[month][val] || 0) + 1;
+      }
+    } else {
+      for (const r of severity) {
+        const val = (r as unknown as Record<string, unknown>)[dim] as string;
+        if (!val) continue;
+        if (!agg[r.month]) agg[r.month] = {};
+        agg[r.month][val] = (agg[r.month][val] || 0) + r.count;
+      }
     }
     return agg;
   };

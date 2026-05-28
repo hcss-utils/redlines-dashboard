@@ -76,13 +76,16 @@ export default function RRLSExplorer() {
     return d;
   }, [statements, minConfidence, sourceFilter, startDate, endDate]);
 
+  // True when any filter is active — forces recomputation from raw statements
+  const isFiltered = minConfidence > 7 || sourceFilter !== 'all' || !!startDate || !!endDate;
+
   // Compute totals dynamically from raw statements for dims not in pre-computed file
   const dynamicTotals = useMemo(() => {
     if (!filteredStatements.length) return {};
     const result: Record<string, TaxonomyRow[]> = {};
     for (const field of STMT_DIM_FIELDS) {
       const dimKey = FIELD_TO_DIM[field] || field;
-      if (totals[dimKey] && minConfidence <= 7) continue; // use pre-computed when unfiltered
+      if (totals[dimKey] && !isFiltered) continue; // use pre-computed only when unfiltered
       const counts: Record<string, number> = {};
       for (const s of filteredStatements) {
         const val = String((s as unknown as Record<string, unknown>)[field] ?? '');
@@ -93,7 +96,7 @@ export default function RRLSExplorer() {
         .map(([value, count]) => ({ value, count }));
     }
     return result;
-  }, [filteredStatements, totals, minConfidence]);
+  }, [filteredStatements, totals, isFiltered]);
 
   const mergedTotals = useMemo(() => ({ ...totals, ...dynamicTotals }), [totals, dynamicTotals]);
 
@@ -115,7 +118,7 @@ export default function RRLSExplorer() {
     const result: Record<string, TaxonomyRow[]> = {};
     for (const field of STMT_DIM_FIELDS) {
       const dimKey = FIELD_TO_DIM[field] || field;
-      if (taxonomy[dimKey] && minConfidence <= 7) continue;
+      if (taxonomy[dimKey] && !isFiltered) continue;
       const counts: Record<string, Record<string, number>> = {};
       for (const s of filteredStatements) {
         const val = String((s as unknown as Record<string, unknown>)[field] ?? '');
@@ -133,7 +136,7 @@ export default function RRLSExplorer() {
       result[dimKey] = rows;
     }
     return result;
-  }, [filteredStatements, taxonomy, minConfidence]);
+  }, [filteredStatements, taxonomy, isFiltered]);
 
   const mergedTaxonomy = useMemo(() => ({ ...taxonomy, ...dynamicTaxonomy }), [taxonomy, dynamicTaxonomy]);
 
@@ -143,7 +146,7 @@ export default function RRLSExplorer() {
     const result: Record<string, { month: string; value: string; count: number }[]> = {};
     for (const field of STMT_DIM_FIELDS) {
       const dimKey = FIELD_TO_DIM[field] || field;
-      if (taxTime[dimKey] && minConfidence <= 7) continue;
+      if (taxTime[dimKey] && !isFiltered) continue;
       const agg: Record<string, number> = {};
       for (const s of filteredStatements) {
         if (!s.date) continue;
@@ -159,7 +162,7 @@ export default function RRLSExplorer() {
       });
     }
     return result;
-  }, [filteredStatements, taxTime, minConfidence]);
+  }, [filteredStatements, taxTime, isFiltered]);
 
   const mergedTaxTime = useMemo(() => ({ ...taxTime, ...dynamicTaxTime }), [taxTime, dynamicTaxTime]);
 
