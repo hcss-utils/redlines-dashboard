@@ -3,6 +3,7 @@ import Plot from './Plot';
 import { load } from '../data';
 import ChartInfo from './ChartInfo';
 import DateRangeFilter from './DateRangeFilter';
+import { matchesSource, type SourceFilterValue } from '../sourceFilter';
 import type {
   LRLSStats, LRLSLangRow, LRLSPhraseRow, LRLSSourceRow, LRLSMatch, MonthlyRow,
 } from '../types';
@@ -25,7 +26,7 @@ export default function LRLSExplorer() {
   const [langFilter, setLangFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [viewMode, setViewMode] = useState<'absolute' | 'relative'>('absolute');
-  const [sourceFilter, setSourceFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -56,10 +57,7 @@ export default function LRLSExplorer() {
     if (endDate) fm = fm.filter(m => m.date <= endDate);
     if (sourceFilter === 'all') return fm;
     return fm.filter(m => {
-    if (sourceFilter === 'kremlin') return m.source === 'kremlin.ru';
-    if (sourceFilter === 'duma') return m.source === 'duma.gov.ru';
-    if (sourceFilter === 'federation') return m.source === 'council.gov.ru';
-    if (sourceFilter === 'telegram') return m.db === 'telegram_official';
+    return matchesSource(m.source, m.db, sourceFilter);
     return true;
   });
   })();

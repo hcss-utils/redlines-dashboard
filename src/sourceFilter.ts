@@ -8,19 +8,26 @@ export const SOURCE_OPTIONS = [
 
 export type SourceFilterValue = typeof SOURCE_OPTIONS[number]['value'];
 
+/** Returns true if a record's source/db matches the selected filter.
+ *  Works for both monthly aggregates (source = 'kremlin.ru') and
+ *  statement-level data (db = 'kremlin', source = channel name). */
 export function matchesSource(
   recordSource: string | undefined,
   recordDb: string | undefined,
   filter: SourceFilterValue,
 ): boolean {
   if (filter === 'all') return true;
-  if (filter === 'kremlin') return recordSource === 'kremlin.ru';
-  if (filter === 'duma') return recordSource === 'duma.gov.ru';
-  if (filter === 'federation') return recordSource === 'council.gov.ru';
+  if (filter === 'kremlin') {
+    return recordSource === 'kremlin.ru' || recordDb === 'kremlin';
+  }
+  if (filter === 'duma') {
+    return recordSource === 'duma.gov.ru' || recordDb === 'state_duma';
+  }
+  if (filter === 'federation') {
+    return recordSource === 'council.gov.ru' || recordDb === 'federation_council';
+  }
   if (filter === 'telegram') {
-    if (recordDb === 'telegram_official') return true;
-    const s = recordSource || '';
-    return s.includes('МИД') || s.includes('Marina') || s.includes('Захарова') || s.includes('Медин') || s.includes('Embassy') || s.includes('Миноборон') || s.includes('Мэр') || s.includes('Володин') || s.includes('Русский') || s.includes('Минстрой');
+    return recordDb === 'telegram_official';
   }
   return true;
 }
