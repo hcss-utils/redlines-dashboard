@@ -8,109 +8,154 @@ import type { SourceFilterValue } from '../sourceFilter';
 import { RRLS_FILTERS, NTS_FILTERS } from '../filterDefs';
 import { fieldColor } from '../filterColors';
 import { confidencePillStyle } from '../confidence';
-import type { RRLSStatement, NTSStatement } from '../types';
+import type { MonthlyRow } from '../types';
+
+// Pre-computed overlap record (from mv_overlap via export)
+interface OverlapRecord {
+  chunk_id: number;
+  date: string;
+  source: string;
+  db: string;
+  context_text_span: string;
+  speaker: string;
+  target: string;
+  // RRLS fields
+  line_type: string;
+  rrls_threat_type: string;
+  line_intensity: string;
+  threat_intensity: string;
+  theme: string;
+  rrls_audience: string;
+  nature_of_threat: string;
+  level_of_escalation: string;
+  geopolitical_area_of_concern: string;
+  immediacy: string;
+  durability: string;
+  reciprocity: string;
+  rrls_specificity: string;
+  temporal_context: string;
+  underlying_values_or_interests: string;
+  unilateral_vs_multilateral: string;
+  rrls_rhetorical_device: string;
+  rrls_confidence: number;
+  // NTS fields
+  nts_statement_type: string;
+  nts_threat_type: string;
+  capability: string;
+  delivery_system: string;
+  conditionality: string;
+  purpose: string;
+  tone: string;
+  context: string;
+  geographical_reach: string;
+  consequences: string;
+  timeline: string;
+  nts_audience: string;
+  nts_specificity: string;
+  nts_rhetorical_device: string;
+  arms_control_and_testing: string;
+  nts_confidence: number;
+}
+
+interface OverlapStats {
+  total_rrls: number;
+  total_nts: number;
+  overlap: number;
+  rrls_only: number;
+  nts_only: number;
+}
+
+interface ValueCount {
+  value: string;
+  count: number;
+}
 
 const PAGE_SIZE = 15;
 
+// Map overlap record fields to RRLS filter keys (field names differ in the matview)
+const RRLS_FIELD_MAP: Record<string, string> = {
+  threat_type: 'rrls_threat_type',
+  audience: 'rrls_audience',
+  specificity: 'rrls_specificity',
+  rhetorical_device: 'rrls_rhetorical_device',
+};
+const NTS_FIELD_MAP: Record<string, string> = {
+  audience: 'nts_audience',
+  specificity: 'nts_specificity',
+  rhetorical_device: 'nts_rhetorical_device',
+};
+
 export default function OverlapExplorer() {
-  const [rrls, setRrls] = useState<RRLSStatement[]>([]);
-  const [nts, setNts] = useState<NTSStatement[]>([]);
+  const [records, setRecords] = useState<OverlapRecord[]>([]);
+  const [stats, setStats] = useState<OverlapStats | null>(null);
+  const [monthlyPre, setMonthlyPre] = useState<MonthlyRow[]>([]);
+  const [tonePre, setTonePre] = useState<ValueCount[]>([]);
+  const [themePre, setThemePre] = useState<ValueCount[]>([]);
+  const [purposePre, setPurposePre] = useState<ValueCount[]>([]);
   const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(0);
 
   useEffect(() => {
-    load<RRLSStatement[]>('rrls_statements.json').then(setRrls);
-    load<NTSStatement[]>('nts_statements.json').then(setNts);
+    load<OverlapRecord[]>('overlap_statements.json').then(setRecords);
+    load<OverlapStats>('overlap_stats.json').then(setStats);
+    load<MonthlyRow[]>('overlap_monthly.json').then(setMonthlyPre);
+    load<ValueCount[]>('overlap_by_tone.json').then(setTonePre);
+    load<ValueCount[]>('overlap_by_theme.json').then(setThemePre);
+    load<ValueCount[]>('overlap_by_purpose.json').then(setPurposePre);
   }, []);
 
-  // Build chunk_id sets
-  const rrlsChunks = useMemo(() => new Set(rrls.map(s => s.chunk_id)), [rrls]);
-  const ntsChunks = useMemo(() => new Set(nts.map(s => s.chunk_id)), [nts]);
-  const overlapChunks = useMemo(() => {
-    const s = new Set<number>();
-    for (const id of rrlsChunks) {
-      if (ntsChunks.has(id)) s.add(id);
-    }
-    return s;
-  }, [rrlsChunks, ntsChunks]);
-
-  // Build joined overlap records
-  const overlapRecords = useMemo(() => {
-    const ntsMap = new Map<number, NTSStatement>();
-    for (const s of nts) ntsMap.set(s.chunk_id, s);
-    return rrls
-      .filter(s => overlapChunks.has(s.chunk_id))
-      .map(r => ({ rrls: r, nts: ntsMap.get(r.chunk_id)! }));
-  }, [rrls, nts, overlapChunks]);
+  const isFiltered = sourceFilter !== 'all' || !!startDate || !!endDate;
 
   const dateBounds = useMemo(() => {
-    let min = '', max = '';
-    for (const { rrls: r } of overlapRecords) {
-      if (!r.date) continue;
-      if (!min || r.date < min) min = r.date;
-      if (!max || r.date > max) max = r.date;
-    }
-    return { min, max };
-  }, [overlapRecords]);
+    if (!records.length) return { min: '', max: '' };
+    const dates = records.map(r => r.date).filter(Boolean).sort();
+    return { min: dates[0] || '', max: dates[dates.length - 1] || '' };
+  }, [records]);
 
   // Apply filters
   const filtered = useMemo(() => {
-    let d = overlapRecords;
-    if (sourceFilter !== 'all') d = d.filter(r => matchesSource(r.rrls.source, r.rrls.db, sourceFilter));
-    if (startDate) d = d.filter(r => r.rrls.date >= startDate);
-    if (endDate) d = d.filter(r => r.rrls.date <= endDate);
+    let d = records;
+    if (sourceFilter !== 'all') d = d.filter(r => matchesSource(r.source, r.db, sourceFilter));
+    if (startDate) d = d.filter(r => r.date >= startDate);
+    if (endDate) d = d.filter(r => r.date <= endDate);
     return d;
-  }, [overlapRecords, sourceFilter, startDate, endDate]);
+  }, [records, sourceFilter, startDate, endDate]);
 
-  // Stats
-  const totalRRLS = rrls.length;
-  const totalNTS = nts.length;
-  const rrlsOnly = totalRRLS - overlapChunks.size;
-  const ntsOnly = totalNTS - overlapChunks.size;
-  const overlapPct = totalRRLS > 0 ? ((overlapChunks.size / totalRRLS) * 100).toFixed(1) : '0';
-
-  // Monthly overlap
-  const monthlyOverlap = useMemo(() => {
+  // Use pre-computed data when unfiltered, recompute when filtered
+  const monthlyData = useMemo(() => {
+    if (!isFiltered) return monthlyPre.map(r => ({ month: r.month, count: r.count }));
     const agg: Record<string, number> = {};
-    for (const { rrls: r } of filtered) {
+    for (const r of filtered) {
       if (!r.date) continue;
       const m = r.date.slice(0, 7);
       agg[m] = (agg[m] || 0) + 1;
     }
-    const months = Object.keys(agg).sort();
-    return { months, counts: months.map(m => agg[m]) };
-  }, [filtered]);
+    return Object.entries(agg).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count }));
+  }, [isFiltered, monthlyPre, filtered]);
 
-  // NTS Tone distribution
-  const toneDist = useMemo(() => {
+  const toneData = useMemo(() => {
+    if (!isFiltered) return tonePre;
     const agg: Record<string, number> = {};
-    for (const { nts: n } of filtered) {
-      if (n?.tone) agg[n.tone] = (agg[n.tone] || 0) + 1;
-    }
-    return Object.entries(agg).sort((a, b) => b[1] - a[1]);
-  }, [filtered]);
+    for (const r of filtered) if (r.tone) agg[r.tone] = (agg[r.tone] || 0) + 1;
+    return Object.entries(agg).sort(([, a], [, b]) => b - a).map(([value, count]) => ({ value, count }));
+  }, [isFiltered, tonePre, filtered]);
 
-  // RRLS Theme distribution (top 10)
-  const themeDist = useMemo(() => {
+  const themeData = useMemo(() => {
+    if (!isFiltered) return themePre;
     const agg: Record<string, number> = {};
-    for (const { rrls: r } of filtered) {
-      if (r.theme) agg[r.theme] = (agg[r.theme] || 0) + 1;
-    }
-    return Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  }, [filtered]);
+    for (const r of filtered) if (r.theme) agg[r.theme] = (agg[r.theme] || 0) + 1;
+    return Object.entries(agg).sort(([, a], [, b]) => b - a).map(([value, count]) => ({ value, count }));
+  }, [isFiltered, themePre, filtered]);
 
-  // NTS Purpose distribution
-  const purposeDist = useMemo(() => {
+  const purposeData = useMemo(() => {
+    if (!isFiltered) return purposePre;
     const agg: Record<string, number> = {};
-    for (const { nts: n } of filtered) {
-      if (n?.purpose) agg[n.purpose] = (agg[n.purpose] || 0) + 1;
-    }
-    return Object.entries(agg).sort((a, b) => b[1] - a[1]);
-  }, [filtered]);
+    for (const r of filtered) if (r.purpose) agg[r.purpose] = (agg[r.purpose] || 0) + 1;
+    return Object.entries(agg).sort(([, a], [, b]) => b - a).map(([value, count]) => ({ value, count }));
+  }, [isFiltered, purposePre, filtered]);
 
-  // Pagination
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -124,32 +169,36 @@ export default function OverlapExplorer() {
       </p>
 
       {/* Stat cards */}
-      <div className="stat-cards">
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: '#d32f2f' }}>{totalRRLS.toLocaleString()}</div>
-          <div className="stat-label">Total RRLS</div>
+      {stats && (
+        <div className="stat-cards">
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#d32f2f' }}>{stats.total_rrls.toLocaleString()}</div>
+            <div className="stat-label">Total RRLS</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#fdd835' }}>{stats.total_nts.toLocaleString()}</div>
+            <div className="stat-label">Total NTS</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#e91e63' }}>{stats.overlap.toLocaleString()}</div>
+            <div className="stat-label">Overlap</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{stats.rrls_only.toLocaleString()}</div>
+            <div className="stat-label">RRLS-Only</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{stats.nts_only.toLocaleString()}</div>
+            <div className="stat-label">NTS-Only</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#e91e63' }}>
+              {stats.total_nts > 0 ? ((stats.overlap / stats.total_nts) * 100).toFixed(1) + '%' : '—'}
+            </div>
+            <div className="stat-label">NTS that are also RRLS</div>
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: '#fdd835' }}>{totalNTS.toLocaleString()}</div>
-          <div className="stat-label">Total NTS</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: '#e91e63' }}>{overlapChunks.size.toLocaleString()}</div>
-          <div className="stat-label">Overlap</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{rrlsOnly.toLocaleString()}</div>
-          <div className="stat-label">RRLS-Only</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{ntsOnly.toLocaleString()}</div>
-          <div className="stat-label">NTS-Only</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: '#e91e63' }}>{overlapPct}%</div>
-          <div className="stat-label">Overlap %</div>
-        </div>
-      </div>
+      )}
 
       {/* Filter bar */}
       <div className="filter-bar">
@@ -168,22 +217,22 @@ export default function OverlapExplorer() {
         <span className="result-count">{filtered.length.toLocaleString()} overlap statements</span>
       </div>
 
-      {/* Monthly overlap bar chart */}
-      {monthlyOverlap.months.length > 0 && (
+      {/* Monthly overlap chart */}
+      {monthlyData.length > 0 && (
         <div className="chart-row">
           <div className="chart-box">
             <div className="chart-title-bar">
               <h4>Monthly Overlap Count</h4>
               <ChartInfo
                 title="Monthly Overlap Count"
-                description="Bar chart showing the number of chunks classified as both RRLS and NTS per month. Spikes indicate periods of combined red-line + nuclear rhetoric."
+                description="Bar chart showing the number of chunks classified as both RRLS and NTS per month."
               />
             </div>
             <Plot
               data={[{
                 type: 'bar',
-                x: monthlyOverlap.months,
-                y: monthlyOverlap.counts,
+                x: monthlyData.map(r => r.month),
+                y: monthlyData.map(r => r.count),
                 marker: { color: '#e91e63' },
               }]}
               layout={{
@@ -203,22 +252,19 @@ export default function OverlapExplorer() {
 
       {/* Distribution charts */}
       <div className="chart-row">
-        {toneDist.length > 0 && (
+        {toneData.length > 0 && (
           <div className="chart-box">
             <div className="chart-title-bar">
               <h4>NTS Tone Distribution</h4>
-              <ChartInfo
-                title="NTS Tone Distribution"
-                description="Distribution of NTS tone values among overlap statements."
-              />
+              <ChartInfo title="NTS Tone" description="Tone distribution among overlap statements." />
             </div>
             <Plot
               data={[{
                 type: 'bar',
-                x: toneDist.map(([v]) => v),
-                y: toneDist.map(([, c]) => c),
+                x: toneData.map(r => r.value),
+                y: toneData.map(r => r.count),
                 marker: { color: '#fdd835' },
-                text: toneDist.map(([, c]) => c.toString()),
+                text: toneData.map(r => r.count.toString()),
                 textposition: 'outside',
               }]}
               layout={{
@@ -235,30 +281,27 @@ export default function OverlapExplorer() {
           </div>
         )}
 
-        {themeDist.length > 0 && (
+        {themeData.length > 0 && (
           <div className="chart-box">
             <div className="chart-title-bar">
               <h4>RRLS Theme (Top 10)</h4>
-              <ChartInfo
-                title="RRLS Theme Distribution"
-                description="Top 10 RRLS themes among overlap statements."
-              />
+              <ChartInfo title="RRLS Theme" description="Theme distribution among overlap statements." />
             </div>
             <Plot
               data={[{
                 type: 'bar',
                 orientation: 'h',
-                x: themeDist.map(([, c]) => c),
-                y: themeDist.map(([v]) => v),
+                x: themeData.slice(0, 10).map(r => r.count),
+                y: themeData.slice(0, 10).map(r => r.value),
                 marker: { color: '#d32f2f' },
-                text: themeDist.map(([, c]) => c.toString()),
+                text: themeData.slice(0, 10).map(r => r.count.toString()),
                 textposition: 'outside',
               }]}
               layout={{
                 paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
                 font: { color: '#e0e0e0' },
                 margin: { t: 10, b: 20, l: 200, r: 60 },
-                height: Math.max(250, themeDist.length * 28),
+                height: Math.max(250, themeData.slice(0, 10).length * 28),
                 yaxis: { autorange: 'reversed' },
                 xaxis: { title: 'Count' },
               }}
@@ -269,23 +312,20 @@ export default function OverlapExplorer() {
         )}
       </div>
 
-      {purposeDist.length > 0 && (
+      {purposeData.length > 0 && (
         <div className="chart-row">
           <div className="chart-box">
             <div className="chart-title-bar">
               <h4>NTS Purpose Distribution</h4>
-              <ChartInfo
-                title="NTS Purpose Distribution"
-                description="Distribution of NTS purpose values among overlap statements."
-              />
+              <ChartInfo title="NTS Purpose" description="Purpose distribution among overlap statements." />
             </div>
             <Plot
               data={[{
                 type: 'bar',
-                x: purposeDist.map(([v]) => v),
-                y: purposeDist.map(([, c]) => c),
+                x: purposeData.map(r => r.value),
+                y: purposeData.map(r => r.count),
                 marker: { color: '#fdd835' },
-                text: purposeDist.map(([, c]) => c.toString()),
+                text: purposeData.map(r => r.count.toString()),
                 textposition: 'outside',
               }]}
               layout={{
@@ -310,7 +350,7 @@ export default function OverlapExplorer() {
             <h4>Overlap Statements</h4>
             <ChartInfo
               title="Overlap Statement Browser"
-              description="Browse chunks that are classified as both RRLS and NTS. Tags from both layers are shown: red for RRLS dimensions, yellow for NTS dimensions."
+              description="Browse chunks classified as both RRLS and NTS. Red tags = RRLS dimensions, yellow tags = NTS dimensions."
             />
           </div>
 
@@ -319,20 +359,20 @@ export default function OverlapExplorer() {
           </div>
 
           <div className="stmt-list">
-            {pageData.map(({ rrls: r, nts: n }, i) => (
+            {pageData.map((r, i) => (
               <div key={`${r.chunk_id}-${i}`} className="stmt-card">
                 <div className="stmt-meta">
                   <span className="stmt-date">{r.date || 'No date'}</span>
                   <span className="stmt-source">{r.source}</span>
                   <span className="stmt-db">{r.db}</span>
-                  {r.overall_confidence && (
-                    <span className="stmt-db" style={confidencePillStyle(r.overall_confidence)}>
-                      RRLS Conf: {r.overall_confidence}/10
+                  {r.rrls_confidence && (
+                    <span className="stmt-db" style={confidencePillStyle(r.rrls_confidence)}>
+                      RRLS: {r.rrls_confidence}/10
                     </span>
                   )}
-                  {n?.overall_confidence && (
-                    <span className="stmt-db" style={confidencePillStyle(n.overall_confidence)}>
-                      NTS Conf: {n.overall_confidence}/10
+                  {r.nts_confidence && (
+                    <span className="stmt-db" style={confidencePillStyle(r.nts_confidence)}>
+                      NTS: {r.nts_confidence}/10
                     </span>
                   )}
                   {r.speaker && <span className="stmt-speaker">Speaker: {r.speaker}</span>}
@@ -340,9 +380,10 @@ export default function OverlapExplorer() {
                 </div>
                 <div className="stmt-text">{r.context_text_span || '(no text)'}</div>
                 <div className="stmt-tags">
-                  {/* All RRLS annotations (red) */}
+                  {/* All RRLS annotations (per-field color) */}
                   {RRLS_FILTERS.map(f => {
-                    const val = (r as unknown as Record<string, unknown>)[f.key] as string | undefined;
+                    const field = RRLS_FIELD_MAP[f.key] || f.key;
+                    const val = (r as unknown as Record<string, unknown>)[field] as string | undefined;
                     if (!val) return null;
                     const c = fieldColor(f.key);
                     return (
@@ -352,8 +393,9 @@ export default function OverlapExplorer() {
                     );
                   })}
                   {/* All NTS annotations (yellow) */}
-                  {n && NTS_FILTERS.map(f => {
-                    const val = (n as unknown as Record<string, unknown>)[f.key] as string | undefined;
+                  {NTS_FILTERS.map(f => {
+                    const field = NTS_FIELD_MAP[f.key] || f.key;
+                    const val = (r as unknown as Record<string, unknown>)[field] as string | undefined;
                     if (!val) return null;
                     const c = '#fdd835';
                     return (
@@ -367,7 +409,7 @@ export default function OverlapExplorer() {
             ))}
             {pageData.length === 0 && (
               <div style={{ padding: '20px', textAlign: 'center', color: '#556' }}>
-                No overlap statements found.
+                {records.length === 0 ? 'Loading...' : 'No overlap statements found.'}
               </div>
             )}
           </div>

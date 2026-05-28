@@ -40,9 +40,21 @@ def qone(conn, sql):
     return rows[0] if rows else {}
 
 
+def refresh_matviews(conn):
+    """Refresh materialized views before export (fast reads from pre-joined data)."""
+    print("\n[0] Refreshing materialized views")
+    with conn.cursor() as cur:
+        for mv in ["mv_rrls_confirmed", "mv_nts_confirmed", "mv_overlap", "mv_rrls_ordinal_monthly"]:
+            cur.execute(f"REFRESH MATERIALIZED VIEW {mv}")
+            print(f"  {mv}: refreshed")
+    conn.commit()
+
+
 def export_all():
     print("Connecting to redlines DB...")
     conn = psycopg2.connect(**DB)
+
+    refresh_matviews(conn)
 
     # ── 1. Overview stats ────────────────────────────────────────────────
     print("\n[1] Overview stats")
@@ -310,47 +322,92 @@ def export_all():
         tax_time[dim] = rows
     save(tax_time, "rrls_taxonomy_time.json")
 
-    # ── 13. Statement browser data (RRLS) ────────────────────────────────
+    # ── 13. Statement browser data (RRLS) — from matview ─────────────────
     print("[13] RRLS statements")
     rrls_stmts = q(conn, """
-        SELECT ra.chunk_id, d.date, d.source, d."database" AS db,
-               ra.context_text_span, ra.source AS speaker, ra.target,
-               ra.line_text_span, ra.threat_text_span,
-               ra.line AS line_type, ra.threat AS threat_type,
-               ra.line_intensity, ra.threat_intensity,
-               ra.theme, ra.audience, ra.nature_of_threat,
-               ra.level_of_escalation, ra.geopolitical_area_of_concern,
-               ra.immediacy, ra.durability, ra.reciprocity, ra.specificity,
-               ra.temporal_context, ra.underlying_values_or_interests,
-               ra.unilateral_vs_multilateral, ra.rhetorical_device,
-               ra.overall_confidence
-        FROM rls_annotation ra
-        JOIN document_chunk dc ON ra.chunk_id = dc.id
-        JOIN document d ON dc.document_id = d.id
-        WHERE ra.is_relevant
-        ORDER BY d.date DESC NULLS LAST
+        SELECT chunk_id, date, source, db,
+               context_text_span, speaker, target,
+               line_text_span, threat_text_span,
+               line_type, threat_type,
+               line_intensity, threat_intensity,
+               theme, audience, nature_of_threat,
+               level_of_escalation, geopolitical_area_of_concern,
+               immediacy, durability, reciprocity, specificity,
+               temporal_context, underlying_values_or_interests,
+               unilateral_vs_multilateral, rhetorical_device,
+               overall_confidence
+        FROM mv_rrls_confirmed
+        ORDER BY date DESC NULLS LAST
     """)
     save(rrls_stmts, "rrls_statements.json")
 
-    # ── 14. Statement browser data (NTS) ─────────────────────────────────
+    # ── 14. Statement browser data (NTS) — from matview ──────────────────
     print("[14] NTS statements")
     nts_stmts = q(conn, """
-        SELECT na.chunk_id, d.date, d.source, d."database" AS db,
-               na.context_text_span, na.source AS speaker, na.target,
-               na.threat_text_span,
-               na.nts_statement_type, na.nts_threat_type, na.capability,
-               na.delivery_system, na.conditionality, na.purpose,
-               na.tone, na.context, na.geographical_reach,
-               na.consequences, na.timeline, na.audience, na.specificity,
-               na.rhetorical_device, na.arms_control_and_testing,
-               na.overall_confidence
-        FROM nts_annotation na
-        JOIN document_chunk dc ON na.chunk_id = dc.id
-        JOIN document d ON dc.document_id = d.id
-        WHERE na.is_relevant
-        ORDER BY d.date DESC NULLS LAST
+        SELECT chunk_id, date, source, db,
+               context_text_span, speaker, target,
+               threat_text_span,
+               nts_statement_type, nts_threat_type, capability,
+               delivery_system, conditionality, purpose,
+               tone, context, geographical_reach,
+               consequences, timeline, audience, specificity,
+               rhetorical_device, arms_control_and_testing,
+               overall_confidence
+        FROM mv_nts_confirmed
+        ORDER BY date DESC NULLS LAST
     """)
     save(nts_stmts, "nts_statements.json")
+
+    # ── 14b. RRLS x NTS overlap — from matview ──────────────────────────
+    print("[14b] Overlap statements")
+    overlap_stmts = q(conn, "SELECT * FROM mv_overlap ORDER BY date DESC NULLS LAST")
+    save(overlap_stmts, "overlap_statements.json")
+
+    # Overlap aggregates
+    overlap_monthly = q(conn, """
+        SELECT TO_CHAR(DATE_TRUNC('month', date), 'YYYY-MM') AS month,
+               COUNT(*) AS count
+        FROM mv_overlap WHERE date IS NOT NULL
+        GROUP BY DATE_TRUNC('month', date) ORDER BY month
+    """)
+    save(overlap_monthly, "overlap_monthly.json")
+
+    overlap_by_tone = q(conn, """
+        SELECT tone AS value, COUNT(*) AS count
+        FROM mv_overlap GROUP BY tone ORDER BY count DESC
+    """)
+    save(overlap_by_tone, "overlap_by_tone.json")
+
+    overlap_by_theme = q(conn, """
+        SELECT theme AS value, COUNT(*) AS count
+        FROM mv_overlap GROUP BY theme ORDER BY count DESC
+    """)
+    save(overlap_by_theme, "overlap_by_theme.json")
+
+    overlap_by_purpose = q(conn, """
+        SELECT purpose AS value, COUNT(*) AS count
+        FROM mv_overlap GROUP BY purpose ORDER BY count DESC
+    """)
+    save(overlap_by_purpose, "overlap_by_purpose.json")
+
+    overlap_stats = qone(conn, """
+        SELECT
+            (SELECT COUNT(*) FROM mv_rrls_confirmed) AS total_rrls,
+            (SELECT COUNT(*) FROM mv_nts_confirmed) AS total_nts,
+            (SELECT COUNT(*) FROM mv_overlap) AS overlap,
+            (SELECT COUNT(*) FROM mv_rrls_confirmed WHERE chunk_id NOT IN (SELECT chunk_id FROM mv_nts_confirmed)) AS rrls_only,
+            (SELECT COUNT(*) FROM mv_nts_confirmed WHERE chunk_id NOT IN (SELECT chunk_id FROM mv_rrls_confirmed)) AS nts_only
+    """)
+    save(overlap_stats, "overlap_stats.json")
+
+    # ── 14c. RRLS ordinal severity monthly — from matview ────────────────
+    print("[14c] RRLS ordinal severity monthly")
+    ordinal = q(conn, """
+        SELECT month, line_type, threat_type, specificity, immediacy, durability,
+               line_intensity, threat_intensity, count
+        FROM mv_rrls_ordinal_monthly ORDER BY month
+    """)
+    save(ordinal, "rrls_ordinal_monthly.json")
 
     # ── 15. Comparative: by database group ───────────────────────────────
     print("[15] Comparative by database")
