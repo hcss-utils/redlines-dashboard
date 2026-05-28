@@ -134,7 +134,7 @@ export interface ComparativeRow {
   nts: number;
 }
 
-export type TabId = 'overview' | 'rrls' | 'nts' | 'overlap' | 'crls' | 'lrls' | 'timeseries' | 'statements' | 'analytics';
+export type TabId = 'overview' | 'rrls' | 'nts' | 'overlap' | 'crls' | 'lrls' | 'timeseries' | 'statements' | 'analytics' | 'sources';
 
 // ── Literal Red Lines (LRLS) types ─────────────────────────────────────────
 

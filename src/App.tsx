@@ -11,6 +11,7 @@ import LRLSExplorer from './components/LRLSExplorer';
 import TimeSeries from './components/TimeSeries';
 import Statements from './components/Statements';
 import Analytics from './components/Analytics';
+import DataSources from './components/DataSources';
 import type { TabId } from './types';
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
         {tab === 'timeseries' && <TimeSeries />}
         {tab === 'statements' && <Statements />}
         {tab === 'analytics' && <Analytics />}
+        {tab === 'sources' && <DataSources />}
       </main>
       <footer>
         <p>Red Lines Annotation Project | Data exported {new Date().toISOString().slice(0, 10)}</p>
