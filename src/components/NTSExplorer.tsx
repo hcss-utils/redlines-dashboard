@@ -4,6 +4,9 @@ import { load } from '../data';
 import { NTS_COLORS, NTS_ORDINAL_SCORES, NTS_ORDINAL_DIMS, NTS_DIM_COLORS, getDimValueColor, ordinalSort } from '../colors';
 import ChartInfo from './ChartInfo';
 import StatementDrilldown from './StatementDrilldown';
+import DateRangeFilter from './DateRangeFilter';
+import { SOURCE_OPTIONS, matchesSource } from '../sourceFilter';
+import type { SourceFilterValue } from '../sourceFilter';
 import type { TaxonomyRow, NTSSeverityRow, NTSStatement } from '../types';
 
 const DIM_LABELS: Record<string, string> = {
@@ -26,6 +29,9 @@ export default function NTSExplorer() {
   const [crossDim1, setCrossDim1] = useState('nts_threat_type');
   const [crossDim2, setCrossDim2] = useState('tone');
   const [minConfidence, setMinConfidence] = useState(7);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [drilldown, setDrilldown] = useState<{ title: string; stmts: NTSStatement[] } | null>(null);
 
   useEffect(() => {
@@ -34,10 +40,25 @@ export default function NTSExplorer() {
     load<NTSStatement[]>('nts_statements.json').then(setStatements);
   }, []);
 
-  // Filter statements by confidence
-  const filteredStatements = useMemo(() =>
-    minConfidence > 7 ? statements.filter(s => (s.overall_confidence ?? 0) >= minConfidence) : statements
-  , [statements, minConfidence]);
+  const dateBounds = useMemo(() => {
+    let min = '', max = '';
+    for (const s of statements) {
+      if (!s.date) continue;
+      if (!min || s.date < min) min = s.date;
+      if (!max || s.date > max) max = s.date;
+    }
+    return { min, max };
+  }, [statements]);
+
+  // Filter statements by confidence, source, and date
+  const filteredStatements = useMemo(() => {
+    let d = statements;
+    if (minConfidence > 7) d = d.filter(s => (s.overall_confidence ?? 0) >= minConfidence);
+    if (sourceFilter !== 'all') d = d.filter(s => matchesSource(s.source, s.db, sourceFilter));
+    if (startDate) d = d.filter(s => s.date >= startDate);
+    if (endDate) d = d.filter(s => s.date <= endDate);
+    return d;
+  }, [statements, minConfidence, sourceFilter, startDate, endDate]);
 
   const dims = Object.keys(taxonomy).sort((a, b) =>
     (DIM_LABELS[a] || a).localeCompare(DIM_LABELS[b] || b)
@@ -126,6 +147,18 @@ export default function NTSExplorer() {
         <select value={selectedDim} onChange={e => setSelectedDim(e.target.value)}>
           {dims.map(d => <option key={d} value={d}>{DIM_LABELS[d] || d}</option>)}
         </select>
+        <select
+          className="source-select"
+          value={sourceFilter}
+          onChange={e => setSourceFilter(e.target.value as SourceFilterValue)}
+        >
+          {SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <DateRangeFilter
+          startDate={startDate} endDate={endDate}
+          onStartChange={setStartDate} onEndChange={setEndDate}
+          min={dateBounds.min} max={dateBounds.max}
+        />
         <div className="confidence-slider">
           <label>Confidence {'\u2265'}</label>
           <input

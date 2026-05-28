@@ -4,6 +4,9 @@ import { load } from '../data';
 import { RRLS_COLORS, RRLS_ORDINAL_SCORES, RRLS_ORDINAL_DIMS, RRLS_DIM_COLORS, getDimValueColor, ordinalSort } from '../colors';
 import ChartInfo from './ChartInfo';
 import StatementDrilldown from './StatementDrilldown';
+import DateRangeFilter from './DateRangeFilter';
+import { SOURCE_OPTIONS, matchesSource } from '../sourceFilter';
+import type { SourceFilterValue } from '../sourceFilter';
 import type { TaxonomyRow, RRLSStatement } from '../types';
 
 const DIM_LABELS: Record<string, string> = {
@@ -41,6 +44,9 @@ export default function RRLSExplorer() {
   const [crossDim2, setCrossDim2] = useState('audience');
   const [showBreakdowns, setShowBreakdowns] = useState(false);
   const [minConfidence, setMinConfidence] = useState(7);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [drilldown, setDrilldown] = useState<{ title: string; stmts: RRLSStatement[] } | null>(null);
 
   useEffect(() => {
@@ -50,10 +56,25 @@ export default function RRLSExplorer() {
     load<RRLSStatement[]>('rrls_statements.json').then(setStatements);
   }, []);
 
-  // Filter statements by confidence
-  const filteredStatements = useMemo(() =>
-    minConfidence > 7 ? statements.filter(s => (s.overall_confidence ?? 0) >= minConfidence) : statements
-  , [statements, minConfidence]);
+  const dateBounds = useMemo(() => {
+    let min = '', max = '';
+    for (const s of statements) {
+      if (!s.date) continue;
+      if (!min || s.date < min) min = s.date;
+      if (!max || s.date > max) max = s.date;
+    }
+    return { min, max };
+  }, [statements]);
+
+  // Filter statements by confidence, source, and date
+  const filteredStatements = useMemo(() => {
+    let d = statements;
+    if (minConfidence > 7) d = d.filter(s => (s.overall_confidence ?? 0) >= minConfidence);
+    if (sourceFilter !== 'all') d = d.filter(s => matchesSource(s.source, s.db, sourceFilter));
+    if (startDate) d = d.filter(s => s.date >= startDate);
+    if (endDate) d = d.filter(s => s.date <= endDate);
+    return d;
+  }, [statements, minConfidence, sourceFilter, startDate, endDate]);
 
   // Compute totals dynamically from raw statements for dims not in pre-computed file
   const dynamicTotals = useMemo(() => {
@@ -223,6 +244,18 @@ export default function RRLSExplorer() {
         <select value={selectedDim} onChange={e => setSelectedDim(e.target.value)}>
           {dims.map(d => <option key={d} value={d}>{DIM_LABELS[d] || d}</option>)}
         </select>
+        <select
+          className="source-select"
+          value={sourceFilter}
+          onChange={e => setSourceFilter(e.target.value as SourceFilterValue)}
+        >
+          {SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <DateRangeFilter
+          startDate={startDate} endDate={endDate}
+          onStartChange={setStartDate} onEndChange={setEndDate}
+          min={dateBounds.min} max={dateBounds.max}
+        />
         <div className="confidence-slider">
           <label>Confidence {'\u2265'}</label>
           <input

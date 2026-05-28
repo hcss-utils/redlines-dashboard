@@ -5,6 +5,7 @@ import { confidencePillStyle } from '../confidence';
 import { RRLS_FILTERS, NTS_FILTERS } from '../filterDefs';
 import { fieldColor } from '../filterColors';
 import ChartInfo from './ChartInfo';
+import DateRangeFilter from './DateRangeFilter';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 type Mode = 'rrls' | 'nts';
@@ -38,6 +39,8 @@ export default function Statements() {
   const [targetFilter, setTargetFilter] = useState('');
   const [dimFilters, setDimFilters] = useState<Record<string, string>>({});
   const [minConfidence, setMinConfidence] = useState(7);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('date-desc');
   const [page, setPage] = useState(0);
 
@@ -48,6 +51,16 @@ export default function Statements() {
 
   const data: (RRLSStatement | NTSStatement)[] = mode === 'rrls' ? rrls : nts;
   const sources = useMemo(() => [...new Set(data.map(r => r.source))].sort(), [data]);
+
+  const dateBounds = useMemo(() => {
+    let min = '', max = '';
+    for (const s of data) {
+      if (!s.date) continue;
+      if (!min || s.date < min) min = s.date;
+      if (!max || s.date > max) max = s.date;
+    }
+    return { min, max };
+  }, [data]);
   const filterDefs = mode === 'rrls' ? RRLS_FILTERS : NTS_FILTERS;
 
   // Resolve the free-text speaker and target fields (900+ / 1700+ distinct
@@ -134,6 +147,9 @@ export default function Statements() {
     if (minConfidence > 7) {
       d = d.filter(r => (r.overall_confidence ?? 0) >= minConfidence);
     }
+    // Apply date filter
+    if (startDate) d = d.filter(r => r.date >= startDate);
+    if (endDate) d = d.filter(r => r.date <= endDate);
     // Sort: statements missing the sort key sink to the bottom.
     const sorted = [...d];
     const at = <T,>(s: (typeof d)[0], key: keyof T): string | number | null => (s as unknown as T)[key] as string | number | null;
@@ -191,14 +207,14 @@ export default function Statements() {
       }
     }
     return sorted;
-  }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, sortBy]);
+  }, [data, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, startDate, endDate, sortBy]);
 
   const PAGE_SIZE = 20;
   const pageData = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   // Reset page when any filter or sort changes
-  useEffect(() => setPage(0), [mode, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, sortBy]);
+  useEffect(() => setPage(0), [mode, sourceFilter, speakerFilter, targetFilter, search, dimFilters, minConfidence, startDate, endDate, sortBy]);
 
   // Reset dimension filters when mode changes
   const handleModeChange = useCallback((newMode: Mode) => {
@@ -209,6 +225,8 @@ export default function Statements() {
     setTargetFilter('');
     setSearch('');
     setMinConfidence(7);
+    setStartDate('');
+    setEndDate('');
     setSortBy('date-desc');
   }, []);
 
@@ -218,7 +236,7 @@ export default function Statements() {
 
   const activeFilterCount = Object.values(dimFilters).filter(Boolean).length +
     (sourceFilter ? 1 : 0) + (speakerFilter ? 1 : 0) + (targetFilter ? 1 : 0) +
-    (search ? 1 : 0) + (minConfidence > 7 ? 1 : 0);
+    (search ? 1 : 0) + (minConfidence > 7 ? 1 : 0) + (startDate ? 1 : 0) + (endDate ? 1 : 0);
 
   const clearAll = useCallback(() => {
     setDimFilters({});
@@ -227,6 +245,8 @@ export default function Statements() {
     setTargetFilter('');
     setSearch('');
     setMinConfidence(7);
+    setStartDate('');
+    setEndDate('');
   }, []);
 
   return (
@@ -289,6 +309,12 @@ export default function Statements() {
           />
           <span className="conf-value">{minConfidence}</span>
         </div>
+
+        <DateRangeFilter
+          startDate={startDate} endDate={endDate}
+          onStartChange={setStartDate} onEndChange={setEndDate}
+          min={dateBounds.min} max={dateBounds.max}
+        />
 
         <span className="result-count">{filtered.length.toLocaleString()} results</span>
       </div>

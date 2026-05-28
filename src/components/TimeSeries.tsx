@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Plot from './Plot';
 import { load } from '../data';
 import { getColor } from '../colors';
 import ChartInfo from './ChartInfo';
 import StatementDrilldown from './StatementDrilldown';
+import DateRangeFilter from './DateRangeFilter';
 import type { MonthlyRow, WarContextRow, RRLSStatement, NTSStatement } from '../types';
 
 export default function TimeSeries() {
@@ -18,6 +19,8 @@ export default function TimeSeries() {
   const [drilldown, setDrilldown] = useState<{ title: string; stmts: (RRLSStatement | NTSStatement)[]; mode: 'rrls' | 'nts' } | null>(null);
   const [viewMode, setViewMode] = useState<'absolute' | 'relative'>('absolute');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     load<MonthlyRow[]>('rrls_monthly.json').then(setRrls);
@@ -55,9 +58,20 @@ export default function TimeSeries() {
   const chunksM: Record<string, number> = {};
   for (const r of chunks) chunksM[r.month] = r.total_chunks;
 
+  const dateBounds = useMemo(() => {
+    const allM = [...new Set([
+      ...Object.keys(rrlsM), ...Object.keys(ntsM), ...Object.keys(crlsM),
+    ])].sort();
+    return { min: allM[0] || '', max: allM[allM.length - 1] || '' };
+  }, [rrlsM, ntsM, crlsM]);
+
   const allMonths = [...new Set([
     ...Object.keys(rrlsM), ...Object.keys(ntsM), ...Object.keys(crlsM),
-  ])].sort();
+  ])].sort().filter(m => {
+    if (startDate && m < startDate.slice(0, 7)) return false;
+    if (endDate && m > endDate.slice(0, 7)) return false;
+    return true;
+  });
 
   const rrlsRate = allMonths.map(m => chunksM[m] ? ((rrlsM[m] || 0) / chunksM[m]) * 100 : 0);
   const ntsRate = allMonths.map(m => chunksM[m] ? ((ntsM[m] || 0) / chunksM[m]) * 100 : 0);
@@ -96,6 +110,11 @@ export default function TimeSeries() {
                   <option value="federation">Federation Council</option>
                   <option value="telegram">Official Telegram</option>
                 </select>
+                <DateRangeFilter
+                  startDate={startDate} endDate={endDate}
+                  onStartChange={setStartDate} onEndChange={setEndDate}
+                  min={dateBounds.min} max={dateBounds.max}
+                />
                 <button
                   onClick={() => setViewMode(viewMode === 'absolute' ? 'relative' : 'absolute')}
                   style={{

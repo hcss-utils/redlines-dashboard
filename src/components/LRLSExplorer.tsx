@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Plot from './Plot';
 import { load } from '../data';
 import ChartInfo from './ChartInfo';
+import DateRangeFilter from './DateRangeFilter';
 import type {
   LRLSStats, LRLSLangRow, LRLSPhraseRow, LRLSSourceRow, LRLSMatch, MonthlyRow,
 } from '../types';
@@ -25,6 +26,8 @@ export default function LRLSExplorer() {
   const [page, setPage] = useState(0);
   const [viewMode, setViewMode] = useState<'absolute' | 'relative'>('absolute');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     load<LRLSStats>('lrls_stats.json').then(setStats);
@@ -36,14 +39,30 @@ export default function LRLSExplorer() {
     load<{ month: string; total_chunks: number }[]>('chunks_monthly.json').then(setChunks);
   }, []);
 
-  // Filter matches by source for timeline
-  const filteredMatches = sourceFilter === 'all' ? matches : matches.filter(m => {
+  const dateBounds = useMemo(() => {
+    let min = '', max = '';
+    for (const m of matches) {
+      if (!m.date) continue;
+      if (!min || m.date < min) min = m.date;
+      if (!max || m.date > max) max = m.date;
+    }
+    return { min, max };
+  }, [matches]);
+
+  // Filter matches by source and date for timeline
+  const filteredMatches = (() => {
+    let fm = matches;
+    if (startDate) fm = fm.filter(m => m.date >= startDate);
+    if (endDate) fm = fm.filter(m => m.date <= endDate);
+    if (sourceFilter === 'all') return fm;
+    return fm.filter(m => {
     if (sourceFilter === 'kremlin') return m.source === 'kremlin.ru';
     if (sourceFilter === 'duma') return m.source === 'duma.gov.ru';
     if (sourceFilter === 'federation') return m.source === 'council.gov.ru';
     if (sourceFilter === 'telegram') return m.db === 'telegram_official';
     return true;
   });
+  })();
 
   // Recompute monthly data based on filtered matches
   const monthlyFiltered: Record<string, Record<string, number>> = {};
@@ -76,6 +95,8 @@ export default function LRLSExplorer() {
       m.matched_phrase?.toLowerCase().includes(term) ||
       m.source?.toLowerCase().includes(term);
     const matchesLang = langFilter === 'all' || m.lang === langFilter;
+    if (startDate && m.date < startDate) return false;
+    if (endDate && m.date > endDate) return false;
     return matchesSearch && matchesLang;
   });
 
@@ -170,6 +191,11 @@ export default function LRLSExplorer() {
                 <option value="federation">Federation Council</option>
                 <option value="telegram">Official Telegram</option>
               </select>
+              <DateRangeFilter
+                startDate={startDate} endDate={endDate}
+                onStartChange={setStartDate} onEndChange={setEndDate}
+                min={dateBounds.min} max={dateBounds.max}
+              />
               <button
                 onClick={() => setViewMode('absolute')}
                 style={{

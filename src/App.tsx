@@ -5,6 +5,7 @@ import RelatedResources from './components/RelatedResources';
 import Overview from './components/Overview';
 import RRLSExplorer from './components/RRLSExplorer';
 import NTSExplorer from './components/NTSExplorer';
+import OverlapExplorer from './components/OverlapExplorer';
 import CRLSExplorer from './components/CRLSExplorer';
 import LRLSExplorer from './components/LRLSExplorer';
 import TimeSeries from './components/TimeSeries';
@@ -36,6 +37,7 @@ export default function App() {
         {tab === 'overview' && <Overview />}
         {tab === 'rrls' && <RRLSExplorer />}
         {tab === 'nts' && <NTSExplorer />}
+        {tab === 'overlap' && <OverlapExplorer />}
         {tab === 'crls' && <CRLSExplorer />}
         {tab === 'lrls' && <LRLSExplorer />}
         {tab === 'timeseries' && <TimeSeries />}

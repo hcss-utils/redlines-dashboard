@@ -4,6 +4,7 @@ const TABS: { id: TabId; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: '#a0a0b0' },
   { id: 'rrls', label: 'RRLS', color: '#d32f2f' },
   { id: 'nts', label: '\u2622 NTS', color: '#fdd835' },
+  { id: 'overlap', label: 'RRLS \u2229 NTS', color: '#e91e63' },
   { id: 'crls', label: 'CRLS', color: '#d62728' },
   { id: 'lrls', label: 'LRLS', color: '#ff7f0e' },
   { id: 'timeseries', label: 'Time Series', color: '#2ca02c' },

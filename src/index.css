@@ -207,6 +207,40 @@ body {
 .mode-btn.active-rrls { border-color: var(--color-rrls); color: var(--color-rrls); background: rgba(211,47,47,0.15); }
 .mode-btn.active-nts { border-color: var(--color-nts); color: var(--color-nts); background: rgba(253,216,53,0.15); }
 
+.date-range-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.date-range-filter label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.date-range-filter input[type="date"] {
+  background: var(--bg-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+}
+.date-range-filter input[type="date"]:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.source-select {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .confidence-slider {
   display: flex;
   align-items: center;
