@@ -1,6 +1,49 @@
+import { useEffect, useState } from 'react';
+
+type Stamp = { refreshed_at_utc: string; source_host?: string; export_elapsed_s?: number };
+
+function daysAgo(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / 86_400_000;
+}
+
+function StalenessBanner({ stamp }: { stamp: Stamp | null }) {
+  if (!stamp) return null;
+  const days = daysAgo(stamp.refreshed_at_utc);
+  const stale = days > 7;
+  return (
+    <div style={{
+      maxWidth: '800px',
+      margin: '0 auto 1rem',
+      padding: '0.75rem 1rem',
+      fontSize: '0.85rem',
+      color: stale ? '#ffd166' : '#9ec5fe',
+      background: stale ? 'rgba(255, 209, 102, 0.08)' : 'rgba(158, 197, 254, 0.05)',
+      border: `1px solid ${stale ? 'rgba(255, 209, 102, 0.3)' : 'rgba(158, 197, 254, 0.2)'}`,
+      borderRadius: '6px',
+      textAlign: 'center',
+    }}>
+      {stale && '⚠ '}
+      Causal Analytics JSONs last refreshed{' '}
+      <strong>{new Date(stamp.refreshed_at_utc).toUTCString().replace(/:\d{2} GMT$/, ' UTC')}</strong>
+      {' '}({days.toFixed(1)} days ago{stale ? ' — stale, please re-run' : ''})
+    </div>
+  );
+}
+
 export default function Analytics() {
+  const [stamp, setStamp] = useState<Stamp | null>(null);
+
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL ?? '/';
+    fetch(`${base}data/last_refreshed_analytics.json`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(setStamp)
+      .catch(() => setStamp(null));
+  }, []);
+
   return (
     <div className="tab-content">
+      <StalenessBanner stamp={stamp} />
       <div style={{
         maxWidth: '800px',
         margin: '4rem auto',

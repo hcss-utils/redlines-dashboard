@@ -67,6 +67,32 @@ VPS (daily 03:00 UTC)                  GitHub Actions                  GitHub Pa
 | `rls_second_pass.py` | same directory | 2nd pass: RRLS taxonomy annotation |
 | `nts_second_pass.py` | same directory | 2nd pass: NTS taxonomy annotation |
 
+## Local-compute analytics (statsmodels / scipy)
+
+The heavy `scripts/export_analytics_data.py` step (VAR, Granger, IRF, LP, event-study via `statsmodels` + `scipy`) does **not** run on the VPS — the VPS pipeline at `/stratbase/apps/webapps/redlines-dashboard-pipeline/run_pipeline.sh` intentionally skips it. Instead it runs on the WSL desktop where the dependencies + the RTX 4090 already live, the result JSONs (`analytics_*.json`) are committed to this repo, and the next VPS pipeline run picks them up via `git pull` and bundles them into the vite build that ships to gh-pages. Same pattern as the other static JSONs (Oryx, UkrDailyUpdate, KIU, Kaggle missiles).
+
+Refresh whenever the redlines DB has new annotations you want reflected on the Causal Analytics tab:
+
+```bash
+~/.local/bin/update_redlines_analytics.sh              # full: export + commit + push
+~/.local/bin/update_redlines_analytics.sh --dry-run    # export only
+~/.local/bin/update_redlines_analytics.sh --no-push    # commit but don't push
+```
+
+The wrapper:
+
+1. `git pull` the local clone at `/home/stephan/src/redlines-dashboard`
+2. Loads DB creds from `/mnt/g/My Drive/SYSTEM_CREDENTIALS.env` (the `PG_WARDATASETS_*` block — same host, port 5432; the export script then targets both the `redlines` and `war_datasets` DBs)
+3. Runs `scripts/export_analytics_data.py` (typically 3-6 min)
+4. Writes `public/data/last_refreshed_analytics.json` with the UTC timestamp + host + elapsed seconds
+5. Commits the changed `analytics_*.json` files + the stamp, pushes to both `origin` (hcss-utils) and `upstream` (sdspieg)
+6. Next VPS pipeline run (cron `0 4 * * *` UTC) picks them up and deploys — or trigger immediately:
+   `ssh root@138.201.62.161 'bash /stratbase/apps/webapps/redlines-dashboard-pipeline/run_pipeline.sh'`
+
+A small banner on the Causal Analytics tab reads `last_refreshed_analytics.json` and shows the freshness ("Causal Analytics JSONs last refreshed Thu, 28 May 2026 21:55 UTC (0.0 days ago)"); after 7 days the banner turns yellow with a "stale, please re-run" hint.
+
+Tradeoff: the VPS pipeline is no longer fully self-contained — the analytics JSONs only refresh when the desktop runs the wrapper. For the current cadence (annotation passes are weekly at best) this is fine.
+
 ## Dashboard Tabs
 
 1. **Overview** - Stat cards, funnel charts, slope chart (RRLS vs NTS rank comparison), by-source and by-database breakdowns

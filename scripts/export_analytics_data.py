@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Export causal analytics data (Granger, VAR/IRF, LP, event study) to JSON."""
+"""Export causal analytics data (Granger, VAR/IRF, LP, event study) to JSON.
+
+Runs LOCALLY on the WSL desktop, NOT in the VPS daily pipeline. The VPS does
+not have statsmodels + scipy installed; this script's outputs arrive in the
+repo via `git pull` from a desktop-side push. See README.md §"Local-compute
+analytics" and HANDOFF.md (2026-05-28 entry) for the architectural rationale.
+
+Wrapper: ~/.local/bin/update_redlines_analytics.sh
+"""
 
 import json
 import os
