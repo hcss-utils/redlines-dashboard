@@ -67,7 +67,6 @@ export default function OverlapExplorer() {
   // Stats
   const totalRRLS = rrls.length;
   const totalNTS = nts.length;
-  const overlapCount = filtered.length;
   const rrlsOnly = totalRRLS - overlapChunks.size;
   const ntsOnly = totalNTS - overlapChunks.size;
   const overlapPct = totalRRLS > 0 ? ((overlapChunks.size / totalRRLS) * 100).toFixed(1) : '0';

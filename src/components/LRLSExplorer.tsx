@@ -172,7 +172,7 @@ export default function LRLSExplorer() {
               </div>
               <select
                 value={sourceFilter}
-                onChange={e => setSourceFilter(e.target.value)}
+                onChange={e => setSourceFilter(e.target.value as SourceFilterValue)}
                 style={{
                   padding: '4px 10px',
                   background: '#1e2a45',
