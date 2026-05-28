@@ -17,6 +17,10 @@
   --radius-lg: 12px;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
 
+  /* Modal accent — matches RuBase Sunburst + PM Dashboard house palette */
+  --color-gold: #ffd166;
+  --color-gold-hover: #e8bd60;
+
   /* Semantic colors for the 3 statement types */
   --color-rrls: #d32f2f;
   --color-nts: #fdd835;
@@ -457,73 +461,76 @@ h3 { margin-bottom: 12px; font-weight: 600; }
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid #4fc3f7;
-  background: #ffffff;
-  color: #1f77b4;
-  font-size: 12px;
+  border: 1.5px solid rgba(255,255,255,.25);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
   font-weight: 700;
-  font-style: italic;
-  font-family: Georgia, serif;
   cursor: pointer;
   margin-left: 8px;
   vertical-align: middle;
-  transition: all 0.2s;
+  transition: all 0.14s;
   flex-shrink: 0;
 }
 
 .chart-info-btn:hover {
-  border-color: #1f77b4;
-  color: #ffffff;
-  background: #1f77b4;
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  background: transparent;
 }
 
+/* Shared overlay for all modals */
 .chart-info-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 2rem;
+  cursor: pointer;
 }
 
 .chart-info-modal {
-  background: #ffffff;
-  border: 1px solid #4fc3f7;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255,255,255,.15);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  max-width: 500px;
+  padding: 1.5rem 2rem;
+  max-width: 520px;
   width: 90%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .chart-info-modal h3 {
-  color: #1f77b4;
+  color: var(--color-gold);
   margin-bottom: 12px;
 }
 
 .chart-info-modal p {
-  color: #333333;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 16px;
+  color: #d0d5e0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin-bottom: 0.75rem;
 }
 
 .chart-info-close {
-  background: #1f77b4;
-  border: 1px solid #1f77b4;
-  color: #ffffff;
-  padding: 8px 20px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text-secondary);
+  padding: 6px 18px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
-  transition: all 0.2s;
+  transition: all 0.14s;
 }
 
 .chart-info-close:hover {
-  background: #155a8a;
-  border-color: #155a8a;
+  color: #ffffff;
+  border-color: var(--color-gold);
+  background: rgba(255,255,255,.12);
 }
 
 /* Chart title bar with info button */
@@ -564,7 +571,7 @@ h3 { margin-bottom: 12px; font-weight: 600; }
 /* Methodology button */
 .methodology-btn {
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid rgba(255,255,255,.25);
   color: var(--text-secondary);
   padding: 4px 14px;
   border-radius: 14px;
@@ -572,57 +579,68 @@ h3 { margin-bottom: 12px; font-weight: 600; }
   font-family: inherit;
   font-size: 12px;
   margin-top: 6px;
-  transition: all 0.2s;
+  transition: all 0.14s;
 }
 
 .methodology-btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  background: rgba(79, 195, 247, 0.08);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  background: transparent;
 }
 
 /* Methodology modal */
 .methodology-modal {
-  background: #ffffff;
-  border: 1px solid #4fc3f7;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255,255,255,.15);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 2rem;
   max-width: 700px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .methodology-modal h2 {
-  color: #1f77b4;
-  font-size: 20px;
-  margin-bottom: 20px;
+  color: var(--color-gold);
+  font-size: 1.25rem;
+  margin-bottom: 1.25rem;
 }
 
 .methodology-modal h3 {
-  color: #333;
-  font-size: 15px;
-  margin-top: 20px;
-  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  padding-bottom: 0.25rem;
 }
 
 .methodology-modal p,
 .methodology-modal li {
-  color: #444;
-  font-size: 13px;
-  line-height: 1.7;
-  margin-bottom: 8px;
+  color: #d0d5e0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin-bottom: 0.4rem;
 }
 
 .methodology-modal ol,
 .methodology-modal ul {
-  padding-left: 20px;
-  margin-bottom: 12px;
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.methodology-modal code {
+  background: var(--bg-sidebar);
+  color: var(--color-gold);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.85em;
 }
 
 .methodology-modal .chart-info-close {
-  margin-top: 20px;
+  margin-top: 1.25rem;
 }
 
 /* Statement drill-down modal */
@@ -637,19 +655,21 @@ h3 { margin-bottom: 12px; font-weight: 600; }
 }
 
 .drilldown-modal {
-  background: var(--bg-primary);
-  border: 1px solid var(--color-accent);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255,255,255,.15);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  max-width: 900px;
+  padding: 1.75rem 2rem;
+  max-width: 920px;
   width: 92%;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .drilldown-modal h3 {
-  color: var(--color-accent);
+  color: var(--color-gold);
+  font-size: 1.15rem;
   margin-bottom: 4px;
 }
 
@@ -660,8 +680,8 @@ h3 { margin-bottom: 12px; font-weight: 600; }
 }
 
 .drilldown-modal .drilldown-close {
-  background: var(--bg-secondary);
-  border: 1px solid var(--color-border);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
   color: var(--text-primary);
   padding: 8px 20px;
   border-radius: var(--radius-sm);
@@ -669,12 +689,12 @@ h3 { margin-bottom: 12px; font-weight: 600; }
   font-family: inherit;
   font-size: 13px;
   margin-top: 16px;
-  transition: all 0.2s;
+  transition: all 0.14s;
 }
 
 .drilldown-modal .drilldown-close:hover {
-  background: var(--bg-hover);
-  border-color: var(--color-accent);
+  background: rgba(255,255,255,.15);
+  border-color: var(--color-gold);
 }
 
 /* Tablet */

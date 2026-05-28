@@ -5,6 +5,9 @@ import ChartInfo from './ChartInfo';
 import DateRangeFilter from './DateRangeFilter';
 import { SOURCE_OPTIONS, matchesSource } from '../sourceFilter';
 import type { SourceFilterValue } from '../sourceFilter';
+import { RRLS_FILTERS, NTS_FILTERS } from '../filterDefs';
+import { fieldColor } from '../filterColors';
+import { confidencePillStyle } from '../confidence';
 import type { RRLSStatement, NTSStatement } from '../types';
 
 const PAGE_SIZE = 15;
@@ -323,19 +326,43 @@ export default function OverlapExplorer() {
                   <span className="stmt-date">{r.date || 'No date'}</span>
                   <span className="stmt-source">{r.source}</span>
                   <span className="stmt-db">{r.db}</span>
+                  {r.overall_confidence && (
+                    <span className="stmt-db" style={confidencePillStyle(r.overall_confidence)}>
+                      RRLS Conf: {r.overall_confidence}/10
+                    </span>
+                  )}
+                  {n?.overall_confidence && (
+                    <span className="stmt-db" style={confidencePillStyle(n.overall_confidence)}>
+                      NTS Conf: {n.overall_confidence}/10
+                    </span>
+                  )}
                   {r.speaker && <span className="stmt-speaker">Speaker: {r.speaker}</span>}
                   {r.target && <span className="stmt-target">Target: {r.target}</span>}
                 </div>
                 <div className="stmt-text">{r.context_text_span || '(no text)'}</div>
                 <div className="stmt-tags">
-                  {r.theme && <span className="tag" style={{ background: 'rgba(211,47,47,0.17)', color: '#d32f2f', borderLeft: '3px solid #d32f2f' }}>Theme: {r.theme}</span>}
-                  {r.level_of_escalation && <span className="tag" style={{ background: 'rgba(211,47,47,0.17)', color: '#d32f2f', borderLeft: '3px solid #d32f2f' }}>Escalation: {r.level_of_escalation}</span>}
-                  {r.line_type && <span className="tag" style={{ background: 'rgba(211,47,47,0.17)', color: '#d32f2f', borderLeft: '3px solid #d32f2f' }}>Line: {r.line_type}</span>}
-                  {r.threat_type && <span className="tag" style={{ background: 'rgba(211,47,47,0.17)', color: '#d32f2f', borderLeft: '3px solid #d32f2f' }}>Threat: {r.threat_type}</span>}
-                  {n?.tone && <span className="tag" style={{ background: 'rgba(253,216,53,0.17)', color: '#fdd835', borderLeft: '3px solid #fdd835' }}>Tone: {n.tone}</span>}
-                  {n?.purpose && <span className="tag" style={{ background: 'rgba(253,216,53,0.17)', color: '#fdd835', borderLeft: '3px solid #fdd835' }}>Purpose: {n.purpose}</span>}
-                  {n?.capability && <span className="tag" style={{ background: 'rgba(253,216,53,0.17)', color: '#fdd835', borderLeft: '3px solid #fdd835' }}>Capability: {n.capability}</span>}
-                  {n?.conditionality && <span className="tag" style={{ background: 'rgba(253,216,53,0.17)', color: '#fdd835', borderLeft: '3px solid #fdd835' }}>Conditionality: {n.conditionality}</span>}
+                  {/* All RRLS annotations (red) */}
+                  {RRLS_FILTERS.map(f => {
+                    const val = (r as unknown as Record<string, unknown>)[f.key] as string | undefined;
+                    if (!val) return null;
+                    const c = fieldColor(f.key);
+                    return (
+                      <span key={`rrls-${f.key}`} className="tag" style={{ background: `${c}2a`, color: c, borderLeft: `3px solid ${c}` }}>
+                        {f.label}: {val}
+                      </span>
+                    );
+                  })}
+                  {/* All NTS annotations (yellow) */}
+                  {n && NTS_FILTERS.map(f => {
+                    const val = (n as unknown as Record<string, unknown>)[f.key] as string | undefined;
+                    if (!val) return null;
+                    const c = '#fdd835';
+                    return (
+                      <span key={`nts-${f.key}`} className="tag" style={{ background: 'rgba(253,216,53,0.17)', color: c, borderLeft: `3px solid ${c}` }}>
+                        {'\u2622'} {f.label}: {val}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))}
