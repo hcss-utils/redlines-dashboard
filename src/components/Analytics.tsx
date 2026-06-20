@@ -67,7 +67,7 @@ export default function Analytics() {
         </p>
 
         <a
-          href="https://sdspieg.github.io/russian_redlines-causal-dashboard/"
+          href="https://rubase.org/causal-dashboard/"
           target="_blank"
           rel="noopener noreferrer"
           style={{

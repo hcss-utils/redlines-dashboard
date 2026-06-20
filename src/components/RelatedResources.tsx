@@ -1,8 +1,8 @@
 type Link = { label: string; url: string; kind: 'dash' | 'app' | 'repo' };
 
 const links: Link[] = [
-  { label: 'War Data Dashboard',         url: 'https://sdspieg.github.io/war-datasets-dashboard/',             kind: 'dash' },
-  { label: 'Causal Dashboard',           url: 'https://sdspieg.github.io/russian_redlines-causal-dashboard/',  kind: 'dash' },
+  { label: 'War Data Dashboard',         url: 'https://rubase.org/war-datasets-dashboard/',             kind: 'dash' },
+  { label: 'Causal Dashboard',           url: 'https://rubase.org/causal-dashboard/',  kind: 'dash' },
   { label: 'RuBase Deliverables',        url: 'http://138.201.62.161:9081/#red-lines',                         kind: 'app'  },
   { label: 'GitHub — redlines-dashboard', url: 'https://github.com/hcss-utils/redlines-dashboard',             kind: 'repo' },
 ];
