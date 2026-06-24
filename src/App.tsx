@@ -2,6 +2,7 @@ import { useState } from 'react';
 import TabNav from './components/TabNav';
 import MethodologyModal from './components/MethodologyModal';
 import RelatedResources from './components/RelatedResources';
+import About from './components/About';
 import Overview from './components/Overview';
 import RRLSExplorer from './components/RRLSExplorer';
 import NTSExplorer from './components/NTSExplorer';
@@ -15,7 +16,7 @@ import DataSources from './components/DataSources';
 import type { TabId } from './types';
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>('overview');
+  const [tab, setTab] = useState<TabId>('about');
 
   return (
     <div className="app">
@@ -35,6 +36,7 @@ export default function App() {
       <RelatedResources />
       <TabNav active={tab} onChange={setTab} />
       <main>
+        {tab === 'about' && <About />}
         {tab === 'overview' && <Overview />}
         {tab === 'rrls' && <RRLSExplorer />}
         {tab === 'nts' && <NTSExplorer />}

@@ -745,3 +745,22 @@ h3 { margin-bottom: 12px; font-weight: 600; }
   .app-header h1 { font-size: 18px; }
   .confidence-slider input[type="range"] { width: 60px; }
 }
+
+/* ---- About tab ---- */
+.about-tab { max-width: 1000px; margin: 0 auto; }
+.about-hero { padding: 8px 0 4px; }
+.about-section { margin-top: 26px; }
+.about-section h3 { font-size: 1.15rem; margin-bottom: 10px; }
+.about-section p { line-height: 1.6; color: #d4d7e0; margin: 8px 0; }
+.about-section ul { line-height: 1.6; color: #d4d7e0; padding-left: 20px; }
+.about-section li { margin: 7px 0; }
+.about-section code { background: rgba(79,195,247,0.12); color: #8fd3f4; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+.about-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 10px; }
+.about-card { display: block; text-decoration: none; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12);
+  border-left-width: 3px; border-radius: 6px; padding: 14px 16px; color: inherit; transition: background 0.15s, transform 0.15s; }
+a.about-card:hover { background: rgba(255,255,255,0.06); transform: translateY(-2px); }
+.about-card h4 { margin: 0 0 6px; color: #e8eaf0; font-size: 1rem; }
+.about-card p { margin: 0; font-size: 0.86rem; color: #aab; line-height: 1.45; }
+.about-here { font-size: 0.66rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #1a2740; background: #dbad51; padding: 2px 7px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+.about-section a { color: #dbad51; }
